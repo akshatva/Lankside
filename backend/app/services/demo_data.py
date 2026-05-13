@@ -467,7 +467,7 @@ def _seed_report(db: Session, business: Business) -> None:
     db.add(
         BankabilityReport(
             business_id=business.id,
-            report_type="BANKABILITY",
+            report_type="BANKABILITY_REPORT",
             status="GENERATED",
             summary=summary,
             summary_text=(

@@ -30,7 +30,7 @@ def generate_bankability_report(db: Session, business_id: int) -> ReportRead:
             business_id=business_id,
             report_type="BANKABILITY_REPORT",
             status="GENERATING",
-            summary=report_data["summary"],
+            summary=report_data,
             summary_text=executive_summary,
         ),
     )
@@ -42,7 +42,7 @@ def generate_bankability_report(db: Session, business_id: int) -> ReportRead:
             report,
             ReportUpdate(
                 status="GENERATED",
-                summary=report_data["summary"],
+                summary=report_data,
                 summary_text=executive_summary,
                 pdf_path=pdf_path,
                 generated_at=datetime.now(timezone.utc),
