@@ -1,0 +1,162 @@
+services:
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: lankside_nginx
+    restart: unless-stopped
+    ports:
+      - "${HTTP_PORT:-80}:80"
+    volumes:
+      - ./deployment/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      backend:
+        condition: service_healthy
+      frontend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost/nginx-health >/dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      target: production
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-}
+    container_name: lankside_frontend
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      NEXT_TELEMETRY_DISABLED: ${NEXT_TELEMETRY_DISABLED:-1}
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-}
+    expose:
+      - "3000"
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://localhost:3000').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+  backend:
+    build:
+      context: ./backend
+      target: production
+    container_name: lankside_backend
+    restart: unless-stopped
+    command: gunicorn app.main:app -k uvicorn.workers.UvicornWorker -w ${BACKEND_WORKERS:-2} -b 0.0.0.0:8000
+    environment:
+      PROJECT_NAME: ${PROJECT_NAME:-Lankside API}
+      ENVIRONMENT: ${ENVIRONMENT:-production}
+      DATABASE_URL: ${DATABASE_URL:-postgresql://lankside:change-me@postgres:5432/lankside_db}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      CELERY_BROKER_URL: ${CELERY_BROKER_URL:-redis://redis:6379/0}
+      CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND:-redis://redis:6379/0}
+      BACKEND_CORS_ORIGINS: ${BACKEND_CORS_ORIGINS:-http://localhost}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-2.5-flash}
+      EXTRACTION_USE_AI: ${EXTRACTION_USE_AI:-false}
+      PINECONE_API_KEY: ${PINECONE_API_KEY:-}
+      PINECONE_INDEX_NAME: ${PINECONE_INDEX_NAME:-lankside-schemes}
+      PINECONE_ENVIRONMENT: ${PINECONE_ENVIRONMENT:-}
+      GRANT_SCOUT_USE_VECTOR: ${GRANT_SCOUT_USE_VECTOR:-false}
+      UPLOAD_DIR: ${UPLOAD_DIR:-/app/uploads}
+      MOU_PDF_DIR: ${MOU_PDF_DIR:-/app/uploads/mous}
+      REPORT_OUTPUT_DIR: ${REPORT_OUTPUT_DIR:-/app/uploads/reports}
+      REPORT_PDF_DIR: ${REPORT_PDF_DIR:-/app/uploads/reports}
+      MAX_UPLOAD_SIZE_MB: ${MAX_UPLOAD_SIZE_MB:-10}
+      ADMIN_DEMO_ENABLED: ${ADMIN_DEMO_ENABLED:-false}
+      PYTHONUNBUFFERED: ${PYTHONUNBUFFERED:-1}
+    expose:
+      - "8000"
+    volumes:
+      - uploads_data:/app/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=5).read()\""]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+  worker:
+    build:
+      context: ./backend
+      target: production
+    container_name: lankside_worker
+    restart: unless-stopped
+    command: celery -A app.worker.celery_app worker --loglevel=info
+    environment:
+      PROJECT_NAME: ${PROJECT_NAME:-Lankside API}
+      ENVIRONMENT: ${ENVIRONMENT:-production}
+      DATABASE_URL: ${DATABASE_URL:-postgresql://lankside:change-me@postgres:5432/lankside_db}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      CELERY_BROKER_URL: ${CELERY_BROKER_URL:-redis://redis:6379/0}
+      CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND:-redis://redis:6379/0}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-2.5-flash}
+      EXTRACTION_USE_AI: ${EXTRACTION_USE_AI:-false}
+      PINECONE_API_KEY: ${PINECONE_API_KEY:-}
+      PINECONE_INDEX_NAME: ${PINECONE_INDEX_NAME:-lankside-schemes}
+      PINECONE_ENVIRONMENT: ${PINECONE_ENVIRONMENT:-}
+      GRANT_SCOUT_USE_VECTOR: ${GRANT_SCOUT_USE_VECTOR:-false}
+      UPLOAD_DIR: ${UPLOAD_DIR:-/app/uploads}
+      MOU_PDF_DIR: ${MOU_PDF_DIR:-/app/uploads/mous}
+      REPORT_OUTPUT_DIR: ${REPORT_OUTPUT_DIR:-/app/uploads/reports}
+      REPORT_PDF_DIR: ${REPORT_PDF_DIR:-/app/uploads/reports}
+      MAX_UPLOAD_SIZE_MB: ${MAX_UPLOAD_SIZE_MB:-10}
+      ADMIN_DEMO_ENABLED: ${ADMIN_DEMO_ENABLED:-false}
+      PYTHONUNBUFFERED: ${PYTHONUNBUFFERED:-1}
+    volumes:
+      - uploads_data:/app/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: lankside_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-lankside}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me}
+      POSTGRES_DB: ${POSTGRES_DB:-lankside_db}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  redis:
+    image: redis:7-alpine
+    container_name: lankside_redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+volumes:
+  postgres_data:
+  redis_data:
+  uploads_data:
