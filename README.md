@@ -269,6 +269,98 @@ Key local URLs:
 - Demo Admin: http://localhost:3000/admin
 - Reports: http://localhost:3000/reports
 
+## Phase 15: Deployment & Productionization
+
+Phase 15 adds a production-oriented Docker Compose path for a single VM/VPS
+deployment. It keeps the local development flow in `docker-compose.yml` and adds
+`docker-compose.prod.yml` for production-style serving behind Nginx.
+
+Production architecture:
+
+```text
+Internet
+  |
+Nginx :80
+  |-- /       -> Next.js frontend :3000
+  |-- /api/*  -> FastAPI backend :8000
+  |-- /health -> FastAPI backend health
+
+Backend -> PostgreSQL, Redis, uploads volume
+Worker  -> Redis broker, PostgreSQL, uploads volume
+```
+
+Production files:
+
+- `docker-compose.prod.yml`
+- `deployment/nginx/nginx.conf`
+- `deployment/deploy.sh`
+- `deployment/backup.sh`
+- `deployment/restore.sh`
+- `.env.production.example`
+- `docs/deployment.md`
+
+Production setup:
+
+```bash
+cp .env.production.example .env.production
+# edit .env.production and replace all placeholders
+./deployment/deploy.sh
+```
+
+Manual production commands:
+
+```bash
+docker compose --env-file .env.production -f docker-compose.prod.yml build
+docker compose --env-file .env.production -f docker-compose.prod.yml run --rm backend alembic upgrade head
+docker compose --env-file .env.production -f docker-compose.prod.yml up -d
+```
+
+Safe production migration command:
+
+```bash
+docker compose --env-file .env.production -f docker-compose.prod.yml run --rm backend alembic upgrade head
+```
+
+Backup guidance:
+
+```bash
+./deployment/backup.sh
+./deployment/restore.sh
+```
+
+Production notes:
+
+- Backend production serving uses Gunicorn with Uvicorn workers.
+- Frontend production serving uses `npm run build` and `npm run start`.
+- Nginx is the only public entrypoint in the production compose file.
+- PostgreSQL and Redis are not published to the host in production.
+- Uploads, MOU PDFs, and report PDFs persist in the `uploads_data` Docker
+  volume mounted at `/app/uploads`.
+- PostgreSQL persists in the `postgres_data` Docker volume.
+- Use Nginx + Certbot, Cloudflare proxy, or another TLS-terminating reverse
+  proxy for HTTPS.
+- Do not commit real secrets. Inject production secrets through
+  `.env.production` or a secure host-level secret mechanism.
+
+Troubleshooting:
+
+```bash
+docker compose --env-file .env.production -f docker-compose.prod.yml ps
+docker compose --env-file .env.production -f docker-compose.prod.yml logs -f nginx
+docker compose --env-file .env.production -f docker-compose.prod.yml logs -f backend
+docker compose --env-file .env.production -f docker-compose.prod.yml logs -f worker
+```
+
+Final deployment verification checklist:
+
+- Frontend is reachable through Nginx.
+- Backend `/health` and `/api/v1/health` are reachable through Nginx.
+- Business onboarding and document uploads work.
+- MOU PDF export works and survives container restart.
+- Bankability Report generation/download works and survives container restart.
+- PostgreSQL data persists after `docker compose restart`.
+- Upload files persist after `docker compose restart`.
+
 ## Environment
 
 The Compose stack uses service names as internal hostnames:
