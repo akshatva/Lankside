@@ -25,10 +25,8 @@ import type {
   ReportSummary,
 } from "@/types/report";
 
-const DEFAULT_API_URL = "http://localhost:8000";
-
 export const backendApiUrl = (
-  process.env.NEXT_PUBLIC_API_URL ?? DEFAULT_API_URL
+  process.env.NEXT_PUBLIC_API_URL?.trim() ?? ""
 ).replace(/\/$/, "");
 
 export type ApiResult<T> =
@@ -60,6 +58,13 @@ async function requestBackend<T>(
   path: string,
   options: RequestInit = {},
 ): Promise<ApiResult<T>> {
+  if (!backendApiUrl) {
+    return {
+      ok: false,
+      error: "NEXT_PUBLIC_API_URL is not configured.",
+    };
+  }
+
   try {
     const headers =
       options.body instanceof FormData
@@ -256,7 +261,9 @@ export async function deleteDocument(id: number): Promise<void> {
 }
 
 export function downloadDocument(id: number): string {
-  return `${backendApiUrl}/api/v1/documents/${id}/download`;
+  return backendApiUrl
+    ? `${backendApiUrl}/api/v1/documents/${id}/download`
+    : "#";
 }
 
 export type AuditFindingFilters = {
@@ -371,7 +378,7 @@ export async function exportMOUPDF(id: number): Promise<MOU> {
 }
 
 export function downloadMOUPDF(id: number): string {
-  return `${backendApiUrl}/api/v1/mous/${id}/download`;
+  return backendApiUrl ? `${backendApiUrl}/api/v1/mous/${id}/download` : "#";
 }
 
 export async function deleteMOU(id: number): Promise<void> {
@@ -518,7 +525,7 @@ export async function getReport(id: number): Promise<Report> {
 }
 
 export function downloadReportPDF(id: number): string {
-  return `${backendApiUrl}/api/v1/reports/${id}/download`;
+  return backendApiUrl ? `${backendApiUrl}/api/v1/reports/${id}/download` : "#";
 }
 
 export async function deleteReport(id: number): Promise<void> {

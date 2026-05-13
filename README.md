@@ -260,6 +260,44 @@ python backend/scripts/smoke_test_api.py
 python backend/scripts/validate_demo_workflow.py
 ```
 
+## GitHub and Vercel Frontend Deployment
+
+The Next.js frontend can be deployed on Vercel from the `frontend/` directory.
+The FastAPI backend remains external and should be deployed separately.
+
+Push the repository to GitHub:
+
+```bash
+git status
+git add .
+git commit -m "Prepare frontend for Vercel deployment"
+git branch -M main
+git remote add origin https://github.com/<owner>/<repo>.git
+git push -u origin main
+```
+
+In Vercel, import the GitHub repository and use these project settings:
+
+- Framework preset: Next.js
+- Root directory: `frontend`
+- Install command: `npm install`
+- Build command: `npm run build`
+- Output directory: leave default
+- Environment variable: `NEXT_PUBLIC_API_URL=<public FastAPI backend origin>`
+
+For local frontend development without Docker, copy the frontend env example:
+
+```bash
+cd frontend
+cp .env.example .env.local
+npm install
+npm run dev
+```
+
+Set `NEXT_PUBLIC_API_URL` to the public URL of the separately deployed FastAPI
+backend, for example `https://api.example.com`. Do not point the Vercel frontend
+at Docker-only hostnames such as `backend` or internal Compose service names.
+
 Key local URLs:
 
 - Backend health: http://localhost:8000/health
