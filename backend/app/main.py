@@ -4,6 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.v1.router import api_router
 from app.core.config import settings
 from app.core.logging import configure_logging
+from app.db.migrations import run_startup_migrations
 
 SERVICE_NAME = "lankside-backend"
 
@@ -21,6 +22,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.add_event_handler("startup", run_startup_migrations)
 
 
 @app.get("/health")
