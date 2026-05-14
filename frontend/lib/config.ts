@@ -1,13 +1,8 @@
 const DEFAULT_API_BASE_URL = "/api/backend";
 
-const configuredApiBaseUrl = process.env.NEXT_PUBLIC_API_URL?.trim();
+export const apiBaseUrl = DEFAULT_API_BASE_URL;
 
-export const apiBaseUrl = (configuredApiBaseUrl || DEFAULT_API_BASE_URL).replace(
-  /\/$/,
-  "",
-);
-
-export const isUsingApiBaseUrlFallback = !configuredApiBaseUrl;
+export const isUsingApiBaseUrlFallback = true;
 
 export function warnIfUsingApiBaseUrlFallback() {
   return;
