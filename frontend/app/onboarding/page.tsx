@@ -1,12 +1,23 @@
 "use client";
 
+import Link from "next/link";
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 
 import { AppShell } from "@/components/app-shell";
-import { DashboardCard } from "@/components/dashboard-card";
 import { SectionHeader } from "@/components/section-header";
 import { StatusBadge } from "@/components/status-badge";
+import { EmptyState } from "@/components/ui/empty-state";
+import { ErrorState } from "@/components/ui/error-state";
+import {
+  FormField,
+  WorkspaceInput,
+} from "@/components/ui/form-field";
+import { MetricCard } from "@/components/ui/metric-card";
+import { WorkspaceButton } from "@/components/ui/workspace-button";
+import { WorkspaceCard } from "@/components/ui/workspace-card";
 import { createBusiness, getBusinesses, updateBusiness } from "@/lib/api";
+import { useDemoSession } from "@/lib/auth";
 import type { Business, BusinessPayload } from "@/types/business";
 
 type FormState = {
@@ -22,6 +33,15 @@ type FormState = {
   turnover_range: string;
 };
 
+type FieldConfig = {
+  helperText?: string;
+  name: keyof FormState;
+  label: string;
+  required?: boolean;
+  type?: string;
+  placeholder?: string;
+};
+
 const emptyForm: FormState = {
   business_name: "",
   owner_name: "",
@@ -35,27 +55,76 @@ const emptyForm: FormState = {
   turnover_range: "",
 };
 
-const fields: Array<{
-  name: keyof FormState;
-  label: string;
-  required?: boolean;
-  type?: string;
-  placeholder?: string;
+const fieldGroups: Array<{
+  description: string;
+  fields: FieldConfig[];
+  title: string;
 }> = [
-  { name: "business_name", label: "Business Name", required: true },
-  { name: "owner_name", label: "Owner Name", required: true },
-  { name: "udyam_id", label: "Udyam ID", placeholder: "UDYAM-XX-00-0000000" },
-  { name: "gstin", label: "GSTIN", placeholder: "22AAAAA0000A1Z5" },
-  { name: "pan", label: "PAN", placeholder: "AAAAA0000A" },
-  { name: "industry_type", label: "Industry Type" },
-  { name: "state", label: "State" },
-  { name: "city", label: "City" },
   {
-    name: "business_age_years",
-    label: "Business Age in Years",
-    type: "number",
+    title: "Business Identity",
+    description: "Basic business details.",
+    fields: [
+      {
+        name: "business_name",
+        label: "Business Name",
+        placeholder: "Kaveri Textiles",
+        required: true,
+      },
+      {
+        name: "owner_name",
+        label: "Owner Name",
+        placeholder: "Founder or proprietor",
+        required: true,
+      },
+      {
+        name: "industry_type",
+        label: "Industry Type",
+        placeholder: "Textiles, packaging, medical distribution",
+      },
+    ],
   },
-  { name: "turnover_range", label: "Turnover Range" },
+  {
+    title: "Registration Details",
+    description: "IDs used for document checks.",
+    fields: [
+      {
+        name: "udyam_id",
+        label: "Udyam ID",
+        helperText: "MSME registration ID.",
+        placeholder: "UDYAM-XX-00-0000000",
+      },
+      {
+        name: "gstin",
+        label: "GSTIN",
+        helperText: "Used for audit matching.",
+        placeholder: "22AAAAA0000A1Z5",
+      },
+      {
+        name: "pan",
+        label: "PAN",
+        placeholder: "AAAAA0000A",
+      },
+    ],
+  },
+  {
+    title: "Location & Operations",
+    description: "Context for grants and score.",
+    fields: [
+      { name: "state", label: "State", placeholder: "Karnataka" },
+      { name: "city", label: "City", placeholder: "Bengaluru" },
+      {
+        name: "business_age_years",
+        label: "Business Age in Years",
+        type: "number",
+        placeholder: "5",
+      },
+      {
+        name: "turnover_range",
+        label: "Turnover Range",
+        placeholder: "50L-1Cr",
+      },
+    ],
+  },
 ];
 
 function businessToForm(business: Business): FormState {
@@ -94,6 +163,8 @@ function toPayload(form: FormState): BusinessPayload {
 }
 
 export default function OnboardingPage() {
+  const router = useRouter();
+  const session = useDemoSession();
   const [form, setForm] = useState<FormState>(emptyForm);
   const [business, setBusiness] = useState<Business | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -104,6 +175,16 @@ export default function OnboardingPage() {
   const mode = useMemo(() => (business ? "Update" : "Create"), [business]);
 
   useEffect(() => {
+    if (!session) {
+      router.replace("/signup");
+    }
+  }, [router, session]);
+
+  useEffect(() => {
+    if (!session) {
+      return;
+    }
+
     let isMounted = true;
 
     getBusinesses()
@@ -138,7 +219,7 @@ export default function OnboardingPage() {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [session]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -182,8 +263,8 @@ export default function OnboardingPage() {
       <div className="space-y-6">
         <SectionHeader
           eyebrow="Onboarding"
-          title="MSME business profile"
-          description="Create and maintain the demo business profile used by the product shell until authentication is added."
+          title="Business Profile"
+          description="Add your MSME details before checking documents."
           action={
             <StatusBadge
               label={business ? "Profile saved" : "Profile pending"}
@@ -192,123 +273,135 @@ export default function OnboardingPage() {
           }
         />
 
-        <div className="grid gap-4 xl:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.65fr)]">
-          <form
-            className="rounded-lg border border-stone-200 bg-white p-5 shadow-sm"
-            onSubmit={handleSubmit}
+        <div className="grid gap-5 xl:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.65fr)]">
+          <WorkspaceCard
+            title={`${mode} profile`}
+            description="Business name and owner name are required."
           >
-            <div className="border-b border-stone-200 pb-4">
-              <h2 className="text-lg font-semibold text-stone-950">
-                {mode} profile
-              </h2>
-              <p className="mt-1 text-sm leading-6 text-stone-600">
-                Required fields are business name and owner name.
-              </p>
-            </div>
-
-            {isLoading ? (
-              <p className="py-10 text-sm text-stone-600">
-                Loading current business profile...
-              </p>
-            ) : (
-              <>
-                <div className="grid gap-4 py-5 md:grid-cols-2">
-                  {fields.map((field) => (
-                    <label className="flex flex-col gap-2" key={field.name}>
-                      <span className="text-sm font-medium text-stone-700">
-                        {field.label}
-                        {field.required ? (
-                          <span className="text-emerald-700"> *</span>
-                        ) : null}
-                      </span>
-                      <input
-                        className="h-11 rounded-md border border-stone-300 bg-white px-3 text-sm text-stone-950 outline-none transition placeholder:text-stone-400 focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"
-                        min={field.type === "number" ? 0 : undefined}
-                        name={field.name}
-                        onChange={(event) =>
-                          updateField(field.name, event.target.value)
-                        }
-                        placeholder={field.placeholder}
-                        required={field.required}
-                        type={field.type ?? "text"}
-                        value={form[field.name]}
-                      />
-                    </label>
+            <form className="space-y-6" onSubmit={handleSubmit}>
+              {!session || isLoading ? (
+                <ErrorState tone="neutral">
+                  Preparing your onboarding workspace...
+                </ErrorState>
+              ) : (
+                <>
+                  {fieldGroups.map((group) => (
+                    <section
+                      className="rounded-xl border border-slate-200 bg-slate-50 p-4"
+                      key={group.title}
+                    >
+                      <div className="mb-4">
+                        <h3 className="text-sm font-semibold text-slate-950">
+                          {group.title}
+                        </h3>
+                        <p className="mt-1 text-sm leading-6 text-slate-600">
+                          {group.description}
+                        </p>
+                      </div>
+                      <div className="grid gap-4 md:grid-cols-2">
+                        {group.fields.map((field) => (
+                          <FormField
+                            helperText={field.helperText}
+                            key={field.name}
+                            label={field.label}
+                            required={field.required}
+                          >
+                            <WorkspaceInput
+                              min={field.type === "number" ? 0 : undefined}
+                              name={field.name}
+                              onChange={(event) =>
+                                updateField(field.name, event.target.value)
+                              }
+                              placeholder={field.placeholder}
+                              required={field.required}
+                              type={field.type ?? "text"}
+                              value={form[field.name]}
+                            />
+                          </FormField>
+                        ))}
+                      </div>
+                    </section>
                   ))}
-                </div>
 
-                {error ? (
-                  <div className="mb-4 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
-                    {error}
+                  {error ? <ErrorState>{error}</ErrorState> : null}
+                  {success ? (
+                    <ErrorState tone="success">{success}</ErrorState>
+                  ) : null}
+
+                  <div className="flex flex-wrap items-center gap-3">
+                    <WorkspaceButton disabled={isSaving} type="submit" size="lg">
+                      {isSaving ? "Saving..." : `${mode} profile`}
+                    </WorkspaceButton>
+                    {business ? (
+                      <WorkspaceButton asChild variant="secondary" size="lg">
+                        <Link href="/documents">Go to Documents</Link>
+                      </WorkspaceButton>
+                    ) : null}
                   </div>
-                ) : null}
+                </>
+              )}
+            </form>
+          </WorkspaceCard>
 
-                {success ? (
-                  <div className="mb-4 rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
-                    {success}
-                  </div>
-                ) : null}
-
-                <button
-                  className="inline-flex h-11 items-center justify-center rounded-md bg-emerald-700 px-5 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:bg-stone-300 disabled:text-stone-500"
-                  disabled={isSaving}
-                  type="submit"
-                >
-                  {isSaving ? "Saving..." : `${mode} Profile`}
-                </button>
-              </>
-            )}
-          </form>
-
-          <DashboardCard
-            title="Saved business"
-            description="The first demo business profile is shown in onboarding and dashboard."
-          >
-            {business ? (
-              <dl className="space-y-3 text-sm">
-                <div>
-                  <dt className="text-stone-500">Business</dt>
-                  <dd className="mt-1 font-medium text-stone-950">
-                    {business.business_name}
-                  </dd>
+          <div className="space-y-5">
+            <WorkspaceCard
+              title="Profile summary"
+              description="Saved business details."
+            >
+              {business ? (
+                <div className="space-y-5">
+                  <MetricCard
+                    label="Current business"
+                    value={business.business_name}
+                    description={business.owner_name}
+                    tone="info"
+                  />
+                  <dl className="grid gap-3 text-sm">
+                    <ProfileRow label="Industry">
+                      {business.industry_type || "Not provided"}
+                    </ProfileRow>
+                    <ProfileRow label="City / State">
+                      {[business.city, business.state].filter(Boolean).join(", ") ||
+                        "Not provided"}
+                    </ProfileRow>
+                    <ProfileRow label="Registration">
+                      {business.udyam_id ||
+                        business.gstin ||
+                        business.pan ||
+                        "Not provided"}
+                    </ProfileRow>
+                    <ProfileRow label="Turnover">
+                      {business.turnover_range || "Not provided"}
+                    </ProfileRow>
+                  </dl>
                 </div>
-                <div>
-                  <dt className="text-stone-500">Owner</dt>
-                  <dd className="mt-1 text-stone-800">
-                    {business.owner_name}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-stone-500">Industry</dt>
-                  <dd className="mt-1 text-stone-800">
-                    {business.industry_type || "Not provided"}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-stone-500">City / State</dt>
-                  <dd className="mt-1 text-stone-800">
-                    {[business.city, business.state].filter(Boolean).join(", ") ||
-                      "Not provided"}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-stone-500">Registration</dt>
-                  <dd className="mt-1 text-stone-800">
-                    {business.udyam_id ||
-                      business.gstin ||
-                      business.pan ||
-                      "Not provided"}
-                  </dd>
-                </div>
-              </dl>
-            ) : (
-              <p className="text-sm leading-6 text-stone-600">
-                Complete the form to create the current demo business profile.
-              </p>
-            )}
-          </DashboardCard>
+              ) : (
+                <EmptyState
+                  title="No readiness profile yet"
+                  description="Create a profile to continue."
+                />
+              )}
+            </WorkspaceCard>
+          </div>
         </div>
       </div>
     </AppShell>
+  );
+}
+
+function ProfileRow({
+  children,
+  label,
+}: {
+  children: React.ReactNode;
+  label: string;
+}) {
+  return (
+    <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+      <dt className="text-xs font-bold uppercase tracking-[0.12em] text-slate-500">
+        {label}
+      </dt>
+      <dd className="mt-1 font-medium text-slate-950">{children}</dd>
+    </div>
   );
 }

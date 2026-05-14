@@ -3,3 +3,8 @@
 backups/
 *.pem
 .DS_Store
+.vercel
+.env*.local
+.venv/
+venv/
+backend/venv/

@@ -9,7 +9,11 @@ import type {
   DemoSummary,
 } from "@/types/admin";
 import type { Business, BusinessPayload } from "@/types/business";
-import type { DocumentRecord } from "@/types/document";
+import type {
+  DocumentExtraction,
+  DocumentExtractionList,
+  DocumentRecord,
+} from "@/types/document";
 import type {
   GrantMatchRunResponse,
   Scheme,
@@ -24,10 +28,9 @@ import type {
   ReportStatus,
   ReportSummary,
 } from "@/types/report";
+import { apiBaseUrl, warnIfUsingApiBaseUrlFallback } from "@/lib/config";
 
-export const backendApiUrl = (
-  process.env.NEXT_PUBLIC_API_URL?.trim() ?? ""
-).replace(/\/$/, "");
+export const backendApiUrl = apiBaseUrl;
 
 export type ApiResult<T> =
   | {
@@ -58,12 +61,7 @@ async function requestBackend<T>(
   path: string,
   options: RequestInit = {},
 ): Promise<ApiResult<T>> {
-  if (!backendApiUrl) {
-    return {
-      ok: false,
-      error: "NEXT_PUBLIC_API_URL is not configured.",
-    };
-  }
+  warnIfUsingApiBaseUrlFallback();
 
   try {
     const headers =
@@ -126,10 +124,17 @@ async function requestBackend<T>(
       data,
     };
   } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Unable to reach backend API";
+    const isNetworkFailure =
+      error instanceof TypeError ||
+      /failed to fetch|load failed|networkerror/i.test(message);
+
     return {
       ok: false,
-      error:
-        error instanceof Error ? error.message : "Unable to reach backend API",
+      error: isNetworkFailure
+        ? `Unable to reach backend API at ${backendApiUrl}. Start the backend or set NEXT_PUBLIC_API_URL to a reachable API URL.`
+        : message,
     };
   }
 }
@@ -264,6 +269,46 @@ export function downloadDocument(id: number): string {
   return backendApiUrl
     ? `${backendApiUrl}/api/v1/documents/${id}/download`
     : "#";
+}
+
+export async function runDocumentExtraction(
+  documentId: number,
+): Promise<DocumentExtraction> {
+  return unwrapApiResult(
+    await requestBackend<DocumentExtraction>(
+      `/api/v1/extractions/${documentId}/run`,
+      {
+        method: "POST",
+      },
+    ),
+  );
+}
+
+export async function getDocumentExtraction(
+  documentId: number,
+): Promise<DocumentExtraction> {
+  return unwrapApiResult(
+    await requestBackend<DocumentExtraction>(
+      `/api/v1/extractions/${documentId}`,
+    ),
+  );
+}
+
+export async function getDocumentExtractions(
+  businessId?: number,
+): Promise<DocumentExtraction[]> {
+  const params = new URLSearchParams();
+  if (businessId !== undefined) {
+    params.set("business_id", String(businessId));
+  }
+
+  const query = params.toString();
+  const result = await unwrapApiResult(
+    await requestBackend<DocumentExtractionList>(
+      `/api/v1/extractions${query ? `?${query}` : ""}`,
+    ),
+  );
+  return result.extractions;
 }
 
 export type AuditFindingFilters = {

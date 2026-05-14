@@ -1,20 +1,44 @@
 "use client";
 
+import Link from "next/link";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 
 import { AppShell } from "@/components/app-shell";
-import { DashboardCard } from "@/components/dashboard-card";
 import { SectionHeader } from "@/components/section-header";
 import { StatusBadge } from "@/components/status-badge";
+import { EmptyState } from "@/components/ui/empty-state";
+import { ErrorState } from "@/components/ui/error-state";
+import {
+  FormField,
+  WorkspaceInput,
+  WorkspaceSelect,
+} from "@/components/ui/form-field";
+import { MetricCard } from "@/components/ui/metric-card";
+import { StatusPill } from "@/components/ui/status-pill";
+import {
+  WorkspaceTable,
+  WorkspaceTd,
+  WorkspaceTh,
+  workspaceRowClassName,
+} from "@/components/ui/workspace-table";
+import { WorkspaceButton } from "@/components/ui/workspace-button";
+import { WorkspaceCard } from "@/components/ui/workspace-card";
 import {
   deleteDocument,
   downloadDocument,
   getBusinesses,
+  getDocumentExtraction,
+  getDocumentExtractions,
   getDocuments,
+  runDocumentExtraction,
   uploadDocument,
 } from "@/lib/api";
 import type { Business } from "@/types/business";
-import type { DocumentRecord, DocumentType } from "@/types/document";
+import type {
+  DocumentExtraction,
+  DocumentRecord,
+  DocumentType,
+} from "@/types/document";
 
 const documentTypes: Array<{ value: DocumentType; label: string }> = [
   { value: "GST_CERTIFICATE", label: "GST Certificate" },
@@ -35,7 +59,10 @@ function formatBytes(value: number) {
   return `${(value / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-function formatDate(value: string) {
+function formatDate(value: string | null) {
+  if (!value) {
+    return "Not processed";
+  }
   return new Intl.DateTimeFormat("en-IN", {
     dateStyle: "medium",
     timeStyle: "short",
@@ -50,15 +77,15 @@ function formatLabel(value: string) {
     .join(" ");
 }
 
-function statusTone(status: string): "online" | "offline" | "pending" | "neutral" {
+function statusTone(status: string): "success" | "danger" | "warning" | "neutral" {
   if (status === "COMPLETED") {
-    return "online";
+    return "success";
   }
   if (status === "FAILED") {
-    return "offline";
+    return "danger";
   }
   if (status === "PENDING" || status === "PROCESSING") {
-    return "pending";
+    return "warning";
   }
   return "neutral";
 }
@@ -72,9 +99,15 @@ export default function DocumentsPage() {
     useState<DocumentType>("GST_CERTIFICATE");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [documents, setDocuments] = useState<DocumentRecord[]>([]);
+  const [extractions, setExtractions] = useState<Record<number, DocumentExtraction>>(
+    {},
+  );
+  const [activeExtraction, setActiveExtraction] =
+    useState<DocumentExtraction | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
   const [isDeletingId, setIsDeletingId] = useState<number | null>(null);
+  const [isExtractingId, setIsExtractingId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
@@ -83,6 +116,10 @@ export default function DocumentsPage() {
       businesses.find((business) => business.id === selectedBusinessId) ?? null,
     [businesses, selectedBusinessId],
   );
+
+  const completedCount = documents.filter(
+    (document) => document.status === "COMPLETED",
+  ).length;
 
   useEffect(() => {
     let isMounted = true;
@@ -101,14 +138,10 @@ export default function DocumentsPage() {
         setSelectedBusinessId(firstBusiness?.id ?? null);
 
         if (firstBusiness) {
-          const loadedDocuments = await getDocuments({
-            businessId: firstBusiness.id,
-          });
-          if (isMounted) {
-            setDocuments(loadedDocuments);
-          }
+          await loadDocuments(firstBusiness.id);
         } else {
           setDocuments([]);
+          setExtractions({});
         }
       } catch (loadError) {
         if (isMounted) {
@@ -135,11 +168,23 @@ export default function DocumentsPage() {
   async function loadDocuments(businessId: number | null) {
     if (!businessId) {
       setDocuments([]);
+      setExtractions({});
       return;
     }
 
-    const loadedDocuments = await getDocuments({ businessId });
+    const [loadedDocuments, loadedExtractions] = await Promise.all([
+      getDocuments({ businessId }),
+      getDocumentExtractions(businessId),
+    ]);
     setDocuments(loadedDocuments);
+    setExtractions(
+      Object.fromEntries(
+        loadedExtractions.map((extraction) => [
+          extraction.document_id,
+          extraction,
+        ]),
+      ),
+    );
   }
 
   async function handleBusinessChange(value: string) {
@@ -147,6 +192,7 @@ export default function DocumentsPage() {
     setSelectedBusinessId(businessId);
     setError(null);
     setSuccess(null);
+    setActiveExtraction(null);
 
     try {
       await loadDocuments(businessId);
@@ -192,6 +238,55 @@ export default function DocumentsPage() {
     }
   }
 
+  async function handleRunExtraction(documentId: number) {
+    setError(null);
+    setSuccess(null);
+    setIsExtractingId(documentId);
+    try {
+      const extraction = await runDocumentExtraction(documentId);
+      setExtractions((current) => ({
+        ...current,
+        [documentId]: extraction,
+      }));
+      setDocuments((current) =>
+        current.map((document) =>
+          document.id === documentId
+            ? {
+                ...document,
+                status: extraction.status,
+                processed_at: extraction.processed_at,
+              }
+            : document,
+        ),
+      );
+      setActiveExtraction(extraction);
+      setSuccess("Extraction completed.");
+    } catch (extractError) {
+      setError(
+        extractError instanceof Error
+          ? extractError.message
+          : "Unable to run extraction.",
+      );
+    } finally {
+      setIsExtractingId(null);
+    }
+  }
+
+  async function handleViewExtraction(documentId: number) {
+    setError(null);
+    try {
+      const extraction = await getDocumentExtraction(documentId);
+      setExtractions((current) => ({ ...current, [documentId]: extraction }));
+      setActiveExtraction(extraction);
+    } catch (viewError) {
+      setError(
+        viewError instanceof Error
+          ? viewError.message
+          : "Unable to load extraction.",
+      );
+    }
+  }
+
   async function handleDelete(documentId: number) {
     setError(null);
     setSuccess(null);
@@ -201,6 +296,14 @@ export default function DocumentsPage() {
       setDocuments((current) =>
         current.filter((document) => document.id !== documentId),
       );
+      setExtractions((current) => {
+        const next = { ...current };
+        delete next[documentId];
+        return next;
+      });
+      if (activeExtraction?.document_id === documentId) {
+        setActiveExtraction(null);
+      }
       setSuccess("Document deleted successfully.");
     } catch (deleteError) {
       setError(
@@ -218,8 +321,8 @@ export default function DocumentsPage() {
       <div className="space-y-6">
         <SectionHeader
           eyebrow="Documents"
-          title="Document upload"
-          description="Upload and track local compliance document files for the selected MSME profile."
+          title="Documents"
+          description="Upload GST, Udyam, PAN, bank, and ITR files."
           action={
             <StatusBadge
               label={`${documents.length} uploaded`}
@@ -229,186 +332,227 @@ export default function DocumentsPage() {
         />
 
         {isLoading ? (
-          <DashboardCard title="Loading documents">
-            <p className="text-sm text-stone-600">Loading document workspace...</p>
-          </DashboardCard>
+          <WorkspaceCard title="Loading documents">
+            <ErrorState tone="neutral">Loading document workspace...</ErrorState>
+          </WorkspaceCard>
         ) : businesses.length === 0 ? (
-          <DashboardCard title="Create a business profile first">
-            <a
-              className="inline-flex h-10 items-center justify-center rounded-md bg-emerald-700 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-800"
-              href="/onboarding"
-            >
-              Go to Onboarding
-            </a>
-          </DashboardCard>
+          <EmptyState
+            title="Create a business profile first"
+            description="Documents need a business profile before uploads can be linked to readiness checks."
+            action={
+              <WorkspaceButton asChild>
+                <Link href="/onboarding">Go to Onboarding</Link>
+              </WorkspaceButton>
+            }
+          />
         ) : (
           <>
-            <form
-              className="rounded-lg border border-stone-200 bg-white p-5 shadow-sm"
-              onSubmit={handleSubmit}
+            <div className="grid gap-5 lg:grid-cols-3">
+              <MetricCard
+                label="Uploaded documents"
+                value={documents.length}
+                tone="red"
+                description="Files on record"
+              />
+              <MetricCard
+                label="Completed extraction"
+                value={completedCount}
+                tone="success"
+                description="Ready for checks"
+              />
+              <MetricCard
+                label="Pending review"
+                value={documents.length - completedCount}
+                tone="warning"
+                description="Needs extraction"
+              />
+            </div>
+
+            <WorkspaceCard
+              title="Upload file"
+              description="Choose business, document type, and file."
             >
-              <div className="grid gap-4 lg:grid-cols-[minmax(180px,1fr)_minmax(180px,1fr)_minmax(220px,1.4fr)_auto] lg:items-end">
-                <label className="flex flex-col gap-2">
-                  <span className="text-sm font-medium text-stone-700">
-                    Business
-                  </span>
-                  <select
-                    className="h-11 rounded-md border border-stone-300 bg-white px-3 text-sm text-stone-950 outline-none transition focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"
-                    onChange={(event) =>
-                      handleBusinessChange(event.target.value)
-                    }
-                    value={selectedBusinessId ?? ""}
+              <form className="space-y-5" onSubmit={handleSubmit}>
+                <div className="grid gap-4 lg:grid-cols-[minmax(180px,1fr)_minmax(180px,1fr)_minmax(220px,1.35fr)]">
+                  <FormField label="Business">
+                    <WorkspaceSelect
+                      onChange={(event) =>
+                        handleBusinessChange(event.target.value)
+                      }
+                      value={selectedBusinessId ?? ""}
+                    >
+                      {businesses.map((business) => (
+                        <option key={business.id} value={business.id}>
+                          {business.business_name}
+                        </option>
+                      ))}
+                    </WorkspaceSelect>
+                  </FormField>
+
+                  <FormField label="Document type">
+                    <WorkspaceSelect
+                      onChange={(event) =>
+                        setDocumentType(event.target.value as DocumentType)
+                      }
+                      value={documentType}
+                    >
+                      {documentTypes.map((type) => (
+                        <option key={type.value} value={type.value}>
+                          {type.label}
+                        </option>
+                      ))}
+                    </WorkspaceSelect>
+                  </FormField>
+
+                  <FormField
+                    label="File"
+                    helperText="Accepted: PDF, PNG, JPG, JPEG up to backend limit."
                   >
-                    {businesses.map((business) => (
-                      <option key={business.id} value={business.id}>
-                        {business.business_name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+                    <WorkspaceInput
+                      accept=".pdf,.png,.jpg,.jpeg,application/pdf,image/png,image/jpeg"
+                      className="py-2 file:mr-3 file:rounded-md file:border-0 file:bg-red-600 file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-white"
+                      onChange={(event) =>
+                        setSelectedFile(event.target.files?.[0] ?? null)
+                      }
+                      type="file"
+                    />
+                  </FormField>
+                </div>
 
-                <label className="flex flex-col gap-2">
-                  <span className="text-sm font-medium text-stone-700">
-                    Document type
-                  </span>
-                  <select
-                    className="h-11 rounded-md border border-stone-300 bg-white px-3 text-sm text-stone-950 outline-none transition focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"
-                    onChange={(event) =>
-                      setDocumentType(event.target.value as DocumentType)
-                    }
-                    value={documentType}
-                  >
-                    {documentTypes.map((type) => (
-                      <option key={type.value} value={type.value}>
-                        {type.label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+                <div className="flex flex-wrap items-center gap-3">
+                  <WorkspaceButton disabled={isUploading} type="submit" size="lg">
+                    {isUploading ? "Uploading..." : "Upload document"}
+                  </WorkspaceButton>
+                  <p className="text-sm text-stone-500">
+                    {selectedBusiness
+                      ? `Selected profile: ${selectedBusiness.business_name}`
+                      : "No profile selected"}
+                  </p>
+                </div>
+              </form>
+            </WorkspaceCard>
 
-                <label className="flex flex-col gap-2">
-                  <span className="text-sm font-medium text-stone-700">
-                    File
-                  </span>
-                  <input
-                    accept=".pdf,.png,.jpg,.jpeg,application/pdf,image/png,image/jpeg"
-                    className="block h-11 rounded-md border border-stone-300 bg-white px-3 py-2 text-sm text-stone-950 file:mr-3 file:rounded-md file:border-0 file:bg-stone-100 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-stone-700"
-                    onChange={(event) =>
-                      setSelectedFile(event.target.files?.[0] ?? null)
-                    }
-                    type="file"
-                  />
-                </label>
+            {error ? <ErrorState>{error}</ErrorState> : null}
+            {success ? <ErrorState tone="success">{success}</ErrorState> : null}
 
-                <button
-                  className="inline-flex h-11 items-center justify-center rounded-md bg-emerald-700 px-5 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:bg-stone-300 disabled:text-stone-500"
-                  disabled={isUploading}
-                  type="submit"
-                >
-                  {isUploading ? "Uploading..." : "Upload"}
-                </button>
-              </div>
-
-              <div className="mt-4 text-sm text-stone-500">
-                {selectedBusiness
-                  ? `Selected profile: ${selectedBusiness.business_name}`
-                  : "No profile selected"}
-              </div>
-            </form>
-
-            {error ? (
-              <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
-                {error}
-              </div>
-            ) : null}
-
-            {success ? (
-              <div className="rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
-                {success}
-              </div>
-            ) : null}
-
-            <DashboardCard
+            <WorkspaceCard
               title="Uploaded documents"
-              description="Metadata and processing status for stored local files."
+              description="Run extraction, view, download, or delete files."
             >
               {documents.length === 0 ? (
-                <p className="text-sm text-stone-600">
-                  No documents uploaded for this business yet.
-                </p>
+                <EmptyState
+                  title="Upload GST, Udyam, PAN, Bank Statement, or ITR to begin."
+                  description="Uploaded documents appear here."
+                />
               ) : (
-                <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-stone-200 text-left text-sm">
-                    <thead>
-                      <tr className="text-stone-500">
-                        <th className="whitespace-nowrap px-3 py-2 font-medium">
-                          Original filename
-                        </th>
-                        <th className="whitespace-nowrap px-3 py-2 font-medium">
-                          Type
-                        </th>
-                        <th className="whitespace-nowrap px-3 py-2 font-medium">
-                          Status
-                        </th>
-                        <th className="whitespace-nowrap px-3 py-2 font-medium">
-                          File size
-                        </th>
-                        <th className="whitespace-nowrap px-3 py-2 font-medium">
-                          Uploaded
-                        </th>
-                        <th className="whitespace-nowrap px-3 py-2 font-medium">
-                          Actions
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-stone-100">
-                      {documents.map((document) => (
-                        <tr key={document.id}>
-                          <td className="max-w-[220px] truncate px-3 py-3 font-medium text-stone-950">
-                            {document.original_filename}
-                          </td>
-                          <td className="whitespace-nowrap px-3 py-3 text-stone-700">
-                            {formatLabel(document.document_type)}
-                          </td>
-                          <td className="whitespace-nowrap px-3 py-3">
-                            <StatusBadge
+                <WorkspaceTable>
+                  <thead>
+                    <tr>
+                      <WorkspaceTh>Document</WorkspaceTh>
+                      <WorkspaceTh>Type</WorkspaceTh>
+                      <WorkspaceTh>Status</WorkspaceTh>
+                      <WorkspaceTh>Size</WorkspaceTh>
+                      <WorkspaceTh>Uploaded</WorkspaceTh>
+                      <WorkspaceTh>Actions</WorkspaceTh>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {documents.map((document) => {
+                      const hasExtraction = Boolean(extractions[document.id]);
+
+                      return (
+                        <tr className={workspaceRowClassName} key={document.id}>
+                          <WorkspaceTd className="max-w-[240px]">
+                            <p className="truncate font-semibold text-stone-950">
+                              {document.original_filename}
+                            </p>
+                            <p className="mt-1 text-xs text-stone-500">
+                              Processed: {formatDate(document.processed_at)}
+                            </p>
+                          </WorkspaceTd>
+                          <WorkspaceTd>{formatLabel(document.document_type)}</WorkspaceTd>
+                          <WorkspaceTd>
+                            <StatusPill
                               label={formatLabel(document.status)}
                               tone={statusTone(document.status)}
                             />
-                          </td>
-                          <td className="whitespace-nowrap px-3 py-3 text-stone-700">
-                            {formatBytes(document.file_size_bytes)}
-                          </td>
-                          <td className="whitespace-nowrap px-3 py-3 text-stone-700">
-                            {formatDate(document.uploaded_at)}
-                          </td>
-                          <td className="whitespace-nowrap px-3 py-3">
+                          </WorkspaceTd>
+                          <WorkspaceTd>{formatBytes(document.file_size_bytes)}</WorkspaceTd>
+                          <WorkspaceTd>{formatDate(document.uploaded_at)}</WorkspaceTd>
+                          <WorkspaceTd>
                             <div className="flex flex-wrap gap-2">
-                              <a
-                                className="inline-flex h-9 items-center rounded-md border border-stone-300 px-3 text-sm font-medium text-stone-700 transition hover:border-emerald-300 hover:text-emerald-800"
-                                href={downloadDocument(document.id)}
+                              <WorkspaceButton
+                                disabled={isExtractingId === document.id}
+                                onClick={() => handleRunExtraction(document.id)}
+                                type="button"
+                                variant="secondary"
+                                size="sm"
                               >
-                                Download
-                              </a>
-                              <button
-                                className="inline-flex h-9 items-center rounded-md border border-red-200 px-3 text-sm font-medium text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+                                {isExtractingId === document.id
+                                  ? "Extracting..."
+                                  : "Run Extraction"}
+                              </WorkspaceButton>
+                              <WorkspaceButton
+                                aria-label={
+                                  hasExtraction
+                                    ? "View extraction"
+                                    : "Fetch extraction"
+                                }
+                                onClick={() => handleViewExtraction(document.id)}
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                              >
+                                View
+                              </WorkspaceButton>
+                              <WorkspaceButton asChild variant="ghost" size="sm">
+                                <a href={downloadDocument(document.id)}>Download</a>
+                              </WorkspaceButton>
+                              <WorkspaceButton
                                 disabled={isDeletingId === document.id}
                                 onClick={() => handleDelete(document.id)}
                                 type="button"
+                                variant="destructive"
+                                size="sm"
                               >
                                 {isDeletingId === document.id
                                   ? "Deleting..."
                                   : "Delete"}
-                              </button>
+                              </WorkspaceButton>
                             </div>
-                          </td>
+                          </WorkspaceTd>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                      );
+                    })}
+                  </tbody>
+                </WorkspaceTable>
               )}
-            </DashboardCard>
+            </WorkspaceCard>
+
+            {activeExtraction ? (
+              <WorkspaceCard
+                title="Extraction preview"
+                description={`Document ${activeExtraction.document_id} · ${formatLabel(activeExtraction.extraction_status)}`}
+                action={
+                  <StatusPill
+                    label={
+                      activeExtraction.confidence_score === null
+                        ? "No confidence score"
+                        : `${Math.round(activeExtraction.confidence_score * 100)}% confidence`
+                    }
+                    tone={
+                      activeExtraction.extraction_status === "COMPLETED"
+                        ? "success"
+                        : "warning"
+                    }
+                  />
+                }
+              >
+                <pre className="max-h-80 overflow-auto rounded-lg border border-stone-200 bg-stone-50 p-4 text-xs leading-6 text-stone-700">
+                  {JSON.stringify(activeExtraction.extracted_fields, null, 2)}
+                </pre>
+              </WorkspaceCard>
+            ) : null}
           </>
         )}
       </div>

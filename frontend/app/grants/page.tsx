@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { AppShell } from "@/components/app-shell";
-import { DashboardCard } from "@/components/dashboard-card";
+import { WorkspaceCard } from "@/components/workspace-card";
 import { SectionHeader } from "@/components/section-header";
 import { StatusBadge } from "@/components/status-badge";
 import {
@@ -17,7 +17,7 @@ import type { Business } from "@/types/business";
 import type { Scheme, SchemeMatch } from "@/types/grants";
 
 const disclaimer =
-  "Preliminary scheme-fit recommendations based on available business profile and seeded scheme rules. Scheme eligibility should be verified against official government guidelines before applying.";
+  "Verify scheme eligibility on official government sources before applying.";
 
 function formatScore(score: number) {
   return Number.isInteger(score) ? String(score) : score.toFixed(2);
@@ -82,17 +82,23 @@ export default function GrantsPage() {
 
   useEffect(() => {
     if (selectedBusinessId === null) {
-      setMatches([]);
       return;
     }
 
     let isMounted = true;
-    setIsGrantLoading(true);
-    setGrantError(null);
+    Promise.resolve()
+      .then(() => {
+        if (!isMounted) {
+          return null;
+        }
 
-    getGrantMatches(selectedBusinessId)
+        setIsGrantLoading(true);
+        setGrantError(null);
+
+        return getGrantMatches(selectedBusinessId);
+      })
       .then((loadedMatches) => {
-        if (isMounted) {
+        if (isMounted && loadedMatches) {
           setMatches(loadedMatches);
         }
       })
@@ -168,14 +174,14 @@ export default function GrantsPage() {
       <div className="space-y-6">
         <SectionHeader
           eyebrow="Grant Scout"
-          title="Scheme matching"
-          description="Preliminary scheme-fit recommendations for seeded Indian MSME schemes."
+          title="Grants"
+          description="Match this business with relevant MSME schemes."
           action={<StatusBadge label={`${schemes.length} schemes`} tone="neutral" />}
         />
 
-        <DashboardCard
-          title="Grant Scout setup"
-          description="Seed the MVP scheme corpus, select a business, and run deterministic matching."
+        <WorkspaceCard
+          title="Find schemes"
+          description="Seed schemes if needed, then run matching."
         >
           {isBusinessLoading ? (
             <p className="text-sm text-stone-500">Loading Grant Scout...</p>
@@ -185,7 +191,7 @@ export default function GrantsPage() {
             </p>
           ) : businesses.length === 0 ? (
             <a
-              className="inline-flex h-10 items-center justify-center rounded-md bg-emerald-700 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-800"
+              className="inline-flex h-10 items-center justify-center rounded-md bg-red-600 px-4 text-sm font-semibold text-white transition hover:bg-red-700"
               href="/onboarding"
             >
               Create a business profile first
@@ -196,7 +202,7 @@ export default function GrantsPage() {
                 <label className="grid gap-2 text-sm font-medium text-stone-700">
                   Business
                   <select
-                    className="h-10 rounded-md border border-stone-300 bg-white px-3 text-sm text-stone-900 outline-none transition focus:border-emerald-500"
+                    className="h-10 rounded-md border border-stone-300 bg-white px-3 text-sm text-stone-900 outline-none transition focus:border-red-500 focus:ring-2 focus:ring-red-100"
                     value={selectedBusinessId ?? ""}
                     onChange={(event) =>
                       setSelectedBusinessId(Number(event.target.value))
@@ -210,7 +216,7 @@ export default function GrantsPage() {
                   </select>
                 </label>
                 <button
-                  className="inline-flex h-10 items-center justify-center rounded-md border border-stone-300 px-4 text-sm font-semibold text-stone-700 transition hover:border-emerald-300 hover:text-emerald-800 disabled:cursor-not-allowed disabled:bg-stone-100"
+                  className="inline-flex h-10 items-center justify-center rounded-md border border-stone-300 px-4 text-sm font-semibold text-stone-700 transition hover:bg-stone-50 disabled:cursor-not-allowed disabled:bg-stone-100"
                   disabled={isSeeding}
                   onClick={handleSeedSchemes}
                   type="button"
@@ -218,14 +224,14 @@ export default function GrantsPage() {
                   {isSeeding ? "Seeding..." : "Seed schemes"}
                 </button>
                 <button
-                  className="inline-flex h-10 items-center justify-center rounded-md bg-emerald-700 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:bg-stone-300"
+                  className="inline-flex h-10 items-center justify-center rounded-md bg-red-600 px-4 text-sm font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-stone-300"
                   disabled={
                     isMatching || selectedBusinessId === null || schemes.length === 0
                   }
                   onClick={handleRunMatching}
                   type="button"
                 >
-                  {isMatching ? "Running..." : "Run Grant Scout"}
+                  {isMatching ? "Running..." : "Run Matching"}
                 </button>
                 {selectedBusiness ? (
                   <p className="text-sm text-stone-500">
@@ -245,7 +251,7 @@ export default function GrantsPage() {
               ) : null}
             </div>
           )}
-        </DashboardCard>
+        </WorkspaceCard>
 
         <p className="rounded-md border border-stone-200 bg-white px-4 py-3 text-sm leading-6 text-stone-700 shadow-sm">
           {disclaimer}
@@ -257,9 +263,9 @@ export default function GrantsPage() {
           </p>
         ) : null}
 
-        <DashboardCard
-          title="Ranked recommendations"
-          description="Stored matches are replaced each time Grant Scout is run for this business."
+        <WorkspaceCard
+          title="Scheme matches"
+          description="Best matches for this business."
         >
           {isGrantLoading ? (
             <p className="text-sm text-stone-500">Loading matches...</p>
@@ -333,7 +339,7 @@ export default function GrantsPage() {
                       </p>
                       {match.scheme.source_url ? (
                         <a
-                          className="mt-2 inline-flex text-sm font-medium text-emerald-800 hover:text-emerald-900"
+                          className="mt-2 inline-flex text-sm font-medium text-red-700 hover:text-red-800"
                           href={match.scheme.source_url}
                           rel="noreferrer"
                           target="_blank"
@@ -347,7 +353,7 @@ export default function GrantsPage() {
               ))}
             </div>
           )}
-        </DashboardCard>
+        </WorkspaceCard>
       </div>
     </AppShell>
   );

@@ -5,7 +5,7 @@ import type { ReactNode } from "react";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 
 import { AppShell } from "@/components/app-shell";
-import { DashboardCard } from "@/components/dashboard-card";
+import { WorkspaceCard } from "@/components/workspace-card";
 import { SectionHeader } from "@/components/section-header";
 import { StatusBadge } from "@/components/status-badge";
 import {
@@ -304,8 +304,8 @@ export default function MouPage() {
       <div className="space-y-6">
         <SectionHeader
           eyebrow="MOU Architect"
-          title="AI-assisted MOU drafting support"
-          description="Create, edit, store, and export collaboration MOU drafts for documentation readiness."
+          title="MOU Drafts"
+          description="Create simple collaboration drafts."
           action={
             <StatusBadge
               label={`${mous.length} generated`}
@@ -319,21 +319,21 @@ export default function MouPage() {
         </div>
 
         {isLoading ? (
-          <DashboardCard title="Loading MOU workspace">
+          <WorkspaceCard title="Loading MOU workspace">
             <p className="text-sm text-stone-600">Loading business profiles...</p>
-          </DashboardCard>
+          </WorkspaceCard>
         ) : businesses.length === 0 ? (
-          <DashboardCard title="Create a business profile first">
+          <WorkspaceCard title="Create a business profile first">
             <p className="text-sm text-stone-600">
               Create a business profile first.
             </p>
             <Link
-              className="mt-4 inline-flex h-10 items-center justify-center rounded-md bg-emerald-700 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-800"
+              className="mt-4 inline-flex h-10 items-center justify-center rounded-md bg-red-600 px-4 text-sm font-semibold text-white transition hover:bg-red-700"
               href="/onboarding"
             >
               Go to Onboarding
             </Link>
-          </DashboardCard>
+          </WorkspaceCard>
         ) : (
           <>
             <form
@@ -346,7 +346,7 @@ export default function MouPage() {
                     Business
                   </span>
                   <select
-                    className="h-11 rounded-md border border-stone-300 bg-white px-3 text-sm text-stone-950 outline-none transition focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"
+                    className="h-11 rounded-md border border-stone-300 bg-white px-3 text-sm text-stone-950 outline-none transition focus:border-red-500 focus:ring-2 focus:ring-red-100"
                     onChange={(event) =>
                       handleBusinessChange(event.target.value)
                     }
@@ -365,7 +365,7 @@ export default function MouPage() {
                     Duration in Months
                   </span>
                   <input
-                    className="h-11 rounded-md border border-stone-300 px-3 text-sm text-stone-950 outline-none transition focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"
+                    className="h-11 rounded-md border border-stone-300 px-3 text-sm text-stone-950 outline-none transition focus:border-red-500 focus:ring-2 focus:ring-red-100"
                     min={1}
                     onChange={(event) =>
                       updateField("duration_months", Number(event.target.value))
@@ -419,11 +419,11 @@ export default function MouPage() {
 
               <div className="mt-5 flex flex-wrap items-center gap-3">
                 <button
-                  className="inline-flex h-11 items-center justify-center rounded-md bg-emerald-700 px-5 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:bg-stone-300 disabled:text-stone-500"
+                  className="inline-flex h-11 items-center justify-center rounded-md bg-red-600 px-5 text-sm font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-stone-300 disabled:text-stone-500"
                   disabled={isGenerating}
                   type="submit"
                 >
-                  {isGenerating ? "Generating..." : "Generate MOU"}
+                  {isGenerating ? "Generating..." : "Generate Draft"}
                 </button>
                 <p className="text-sm text-stone-500">
                   {selectedBusiness
@@ -446,18 +446,18 @@ export default function MouPage() {
             ) : null}
 
             <div className="grid gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(360px,0.8fr)]">
-              <DashboardCard
+              <WorkspaceCard
                 title={
                   activeMou
                     ? `Draft: ${activeMou.party_a_name} and ${activeMou.party_b_name}`
                     : "Generated draft preview"
                 }
-                description="Edit the generated text before exporting a PDF."
+                description="Edit before exporting."
               >
                 {activeMou ? (
                   <div className="space-y-4">
                     <textarea
-                      className="min-h-[520px] w-full rounded-md border border-stone-300 bg-white p-3 font-mono text-sm leading-6 text-stone-950 outline-none transition focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"
+                      className="min-h-[520px] w-full rounded-md border border-stone-300 bg-white p-3 font-mono text-sm leading-6 text-stone-950 outline-none transition focus:border-red-500 focus:ring-2 focus:ring-red-100"
                       onChange={(event) => setDraftText(event.target.value)}
                       value={draftText}
                     />
@@ -471,7 +471,7 @@ export default function MouPage() {
                         {isSaving ? "Saving..." : "Save Changes"}
                       </button>
                       <button
-                        className="inline-flex h-10 items-center rounded-md border border-stone-300 px-4 text-sm font-medium text-stone-700 transition hover:border-emerald-300 hover:text-emerald-800 disabled:cursor-not-allowed disabled:opacity-60"
+                        className="inline-flex h-10 items-center rounded-md border border-stone-300 px-4 text-sm font-medium text-stone-700 transition hover:bg-stone-50 disabled:cursor-not-allowed disabled:opacity-60"
                         disabled={exportingId === activeMou.id}
                         onClick={() => handleExport(activeMou.id)}
                         type="button"
@@ -482,7 +482,7 @@ export default function MouPage() {
                       </button>
                       {activeMou.pdf_path ? (
                         <a
-                          className="inline-flex h-10 items-center rounded-md border border-emerald-200 px-4 text-sm font-medium text-emerald-800 transition hover:bg-emerald-50"
+                          className="inline-flex h-10 items-center rounded-md border border-stone-300 px-4 text-sm font-medium text-stone-700 transition hover:bg-stone-50"
                           href={downloadMOUPDF(activeMou.id)}
                         >
                           Download PDF
@@ -496,11 +496,11 @@ export default function MouPage() {
                     the draft.
                   </p>
                 )}
-              </DashboardCard>
+              </WorkspaceCard>
 
-              <DashboardCard
+              <WorkspaceCard
                 title="Draft metadata"
-                description="Current editable MOU inputs and export status."
+                description="Current draft details."
               >
                 {activeMou ? (
                   <dl className="space-y-3 text-sm">
@@ -527,12 +527,12 @@ export default function MouPage() {
                     No MOU selected yet.
                   </p>
                 )}
-              </DashboardCard>
+              </WorkspaceCard>
             </div>
 
-            <DashboardCard
+            <WorkspaceCard
               title="MOU list"
-              description="Generated draft history for the selected business."
+              description="Draft history for this business."
             >
               {mous.length === 0 ? (
                 <p className="text-sm text-stone-600">
@@ -587,14 +587,14 @@ export default function MouPage() {
                           <td className="px-3 py-3">
                             <div className="flex flex-wrap gap-2">
                               <button
-                                className="inline-flex h-9 items-center rounded-md border border-stone-300 px-3 text-sm font-medium text-stone-700 transition hover:border-emerald-300 hover:text-emerald-800"
+                                className="inline-flex h-9 items-center rounded-md border border-stone-300 px-3 text-sm font-medium text-stone-700 transition hover:bg-stone-50"
                                 onClick={() => selectMou(mou)}
                                 type="button"
                               >
                                 View/Edit
                               </button>
                               <button
-                                className="inline-flex h-9 items-center rounded-md border border-stone-300 px-3 text-sm font-medium text-stone-700 transition hover:border-emerald-300 hover:text-emerald-800 disabled:cursor-not-allowed disabled:opacity-60"
+                                className="inline-flex h-9 items-center rounded-md border border-stone-300 px-3 text-sm font-medium text-stone-700 transition hover:bg-stone-50 disabled:cursor-not-allowed disabled:opacity-60"
                                 disabled={exportingId === mou.id}
                                 onClick={() => handleExport(mou.id)}
                                 type="button"
@@ -605,7 +605,7 @@ export default function MouPage() {
                               </button>
                               {mou.pdf_path ? (
                                 <a
-                                  className="inline-flex h-9 items-center rounded-md border border-emerald-200 px-3 text-sm font-medium text-emerald-800 transition hover:bg-emerald-50"
+                                  className="inline-flex h-9 items-center rounded-md border border-stone-300 px-3 text-sm font-medium text-stone-700 transition hover:bg-stone-50"
                                   href={downloadMOUPDF(mou.id)}
                                 >
                                   Download PDF
@@ -627,7 +627,7 @@ export default function MouPage() {
                   </table>
                 </div>
               )}
-            </DashboardCard>
+            </WorkspaceCard>
           </>
         )}
       </div>
@@ -646,7 +646,7 @@ function TextInput({ label, onChange, value }: TextInputProps) {
     <label className="flex flex-col gap-2">
       <span className="text-sm font-medium text-stone-700">{label}</span>
       <input
-        className="h-11 rounded-md border border-stone-300 px-3 text-sm text-stone-950 outline-none transition focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"
+        className="h-11 rounded-md border border-stone-300 px-3 text-sm text-stone-950 outline-none transition focus:border-red-500 focus:ring-2 focus:ring-red-100"
         onChange={(event) => onChange(event.target.value)}
         required
         value={value}
@@ -660,7 +660,7 @@ function TextAreaInput({ label, onChange, value }: TextInputProps) {
     <label className="flex flex-col gap-2">
       <span className="text-sm font-medium text-stone-700">{label}</span>
       <textarea
-        className="min-h-28 rounded-md border border-stone-300 p-3 text-sm leading-6 text-stone-950 outline-none transition focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"
+        className="min-h-28 rounded-md border border-stone-300 p-3 text-sm leading-6 text-stone-950 outline-none transition focus:border-red-500 focus:ring-2 focus:ring-red-100"
         onChange={(event) => onChange(event.target.value)}
         required
         value={value}

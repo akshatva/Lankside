@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import { AppShell } from "@/components/app-shell";
-import { DashboardCard } from "@/components/dashboard-card";
+import { WorkspaceCard } from "@/components/workspace-card";
 import { SectionHeader } from "@/components/section-header";
 import { StatusBadge } from "@/components/status-badge";
 import { getDemoSummary, resetDemoData, seedDemoData } from "@/lib/api";
@@ -15,7 +15,6 @@ import type {
 } from "@/types/admin";
 
 const navigationLinks = [
-  { label: "Dashboard", href: "/dashboard" },
   { label: "Onboarding", href: "/onboarding" },
   { label: "Documents", href: "/documents" },
   { label: "Audit", href: "/audit" },
@@ -116,7 +115,7 @@ export default function AdminPage() {
         <SectionHeader
           eyebrow="Admin"
           title="Demo Admin"
-          description="Seed, inspect, and reset deterministic demo records for local walkthroughs."
+          description="Manage demo data for testing."
           action={
             <StatusBadge
               label={`${summary.demo_businesses} demo businesses`}
@@ -131,13 +130,13 @@ export default function AdminPage() {
           not upload real PAN, GST, Udyam, bank, ITR, or identity documents.
         </div>
 
-        <DashboardCard
+        <WorkspaceCard
           title="Demo workflow controls"
-          description="Seed creates fake business profiles, dummy documents, audit findings, LRI scores, MOU data, grant matches, and report summaries."
+          description="Seed or reset demo records."
         >
           <div className="flex flex-col gap-3 sm:flex-row">
             <button
-              className="inline-flex h-10 items-center justify-center rounded-md bg-emerald-700 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:bg-stone-300"
+              className="inline-flex h-10 items-center justify-center rounded-md bg-red-600 px-4 text-sm font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-stone-300"
               disabled={isSeeding || isResetting}
               onClick={handleSeed}
               type="button"
@@ -163,7 +162,7 @@ export default function AdminPage() {
               {error}
             </p>
           ) : null}
-        </DashboardCard>
+        </WorkspaceCard>
 
         <section>
           <SectionHeader
@@ -171,30 +170,30 @@ export default function AdminPage() {
             description={
               isLoading
                 ? "Loading demo counts."
-                : "Counts are scoped to the known demo user and demo businesses."
+                : "Current demo counts."
             }
           />
           <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             {Object.entries(summary).map(([key, value]) => (
-              <DashboardCard
+              <WorkspaceCard
                 key={key}
                 title={key.replaceAll("_", " ")}
                 description="Demo scoped count"
               >
                 <p className="text-3xl font-semibold text-stone-950">{value}</p>
-              </DashboardCard>
+              </WorkspaceCard>
             ))}
           </div>
         </section>
 
-        <DashboardCard
+        <WorkspaceCard
           title="Demo navigation"
-          description="Open each product area after seeding the demo data."
+          description="Open product areas after seeding."
         >
           <div className="flex flex-wrap gap-2">
             {navigationLinks.map((link) => (
               <Link
-                className="inline-flex h-9 items-center rounded-md border border-stone-300 px-3 text-sm font-medium text-stone-700 transition hover:border-emerald-300 hover:text-emerald-800"
+                className="inline-flex h-9 items-center rounded-md border border-stone-300 px-3 text-sm font-medium text-stone-700 transition hover:bg-stone-50"
                 href={link.href}
                 key={link.href}
               >
@@ -202,7 +201,7 @@ export default function AdminPage() {
               </Link>
             ))}
           </div>
-        </DashboardCard>
+        </WorkspaceCard>
       </div>
     </AppShell>
   );

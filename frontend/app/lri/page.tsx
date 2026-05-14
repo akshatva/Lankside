@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { AppShell } from "@/components/app-shell";
-import { DashboardCard } from "@/components/dashboard-card";
+import { WorkspaceCard } from "@/components/workspace-card";
 import { ScoreCard } from "@/components/score-card";
 import { SectionHeader } from "@/components/section-header";
 import { StatusBadge } from "@/components/status-badge";
@@ -43,6 +43,13 @@ function formatDate(value: string) {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(new Date(value));
+}
+
+function getExplanationPoints(explanation: string) {
+  return explanation
+    .split(/\n+|(?<=\.)\s+/)
+    .map((point) => point.replace(/^[-*]\s*/, "").trim())
+    .filter(Boolean);
 }
 
 export default function LriPage() {
@@ -91,23 +98,30 @@ export default function LriPage() {
 
   useEffect(() => {
     if (selectedBusinessId === null) {
-      setLatestScore(null);
-      setHistory([]);
       return;
     }
 
     let isMounted = true;
-    setIsLriLoading(true);
-    setLriError(null);
-
-    Promise.allSettled([
-      getLatestLRI(selectedBusinessId),
-      getLRIHistory(selectedBusinessId),
-    ])
-      .then(([latestResult, historyResult]) => {
+    Promise.resolve()
+      .then(() => {
         if (!isMounted) {
+          return null;
+        }
+
+        setIsLriLoading(true);
+        setLriError(null);
+
+        return Promise.allSettled([
+          getLatestLRI(selectedBusinessId),
+          getLRIHistory(selectedBusinessId),
+        ]);
+      })
+      .then((results) => {
+        if (!isMounted || !results) {
           return;
         }
+
+        const [latestResult, historyResult] = results;
 
         if (latestResult.status === "fulfilled") {
           setLatestScore(latestResult.value);
@@ -176,8 +190,8 @@ export default function LriPage() {
       <div className="space-y-6">
         <SectionHeader
           eyebrow="LRI"
-          title="Lankside Readiness Index"
-          description="Deterministic MSME readiness scoring from documents, audit findings, profile completeness, and collaboration evidence."
+          title="Readiness Score"
+          description="Check how ready this business is for credit or schemes."
           action={
             latestScore ? (
               <StatusBadge
@@ -190,9 +204,9 @@ export default function LriPage() {
           }
         />
 
-        <DashboardCard
+        <WorkspaceCard
           title="Business selection"
-          description="Calculate and review readiness for one business profile at a time."
+          description="Select a business and calculate score."
         >
           {isBusinessLoading ? (
             <p className="text-sm text-stone-500">Loading businesses...</p>
@@ -202,7 +216,7 @@ export default function LriPage() {
             </p>
           ) : businesses.length === 0 ? (
             <a
-              className="inline-flex h-10 items-center justify-center rounded-md bg-emerald-700 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-800"
+              className="inline-flex h-10 items-center justify-center rounded-md bg-red-600 px-4 text-sm font-semibold text-white transition hover:bg-red-700"
               href="/onboarding"
             >
               Create a business profile first
@@ -211,8 +225,8 @@ export default function LriPage() {
             <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
               <label className="grid gap-2 text-sm font-medium text-stone-700">
                 Business
-                <select
-                  className="h-10 rounded-md border border-stone-300 bg-white px-3 text-sm text-stone-900 outline-none transition focus:border-emerald-500"
+                  <select
+                  className="h-10 rounded-md border border-stone-300 bg-white px-3 text-sm text-stone-900 outline-none transition focus:border-red-500 focus:ring-2 focus:ring-red-100"
                   value={selectedBusinessId ?? ""}
                   onChange={(event) =>
                     setSelectedBusinessId(Number(event.target.value))
@@ -226,12 +240,12 @@ export default function LriPage() {
                 </select>
               </label>
               <button
-                className="inline-flex h-10 items-center justify-center rounded-md bg-emerald-700 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:bg-stone-300"
+                className="inline-flex h-10 items-center justify-center rounded-md bg-red-600 px-4 text-sm font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-stone-300"
                 disabled={isCalculating || selectedBusinessId === null}
                 onClick={handleCalculate}
                 type="button"
               >
-                {isCalculating ? "Calculating..." : "Calculate LRI"}
+                {isCalculating ? "Calculating..." : "Calculate Score"}
               </button>
               {selectedBusiness ? (
                 <p className="text-sm text-stone-500">
@@ -241,7 +255,7 @@ export default function LriPage() {
               ) : null}
             </div>
           )}
-        </DashboardCard>
+        </WorkspaceCard>
 
         {lriError ? (
           <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
@@ -250,7 +264,7 @@ export default function LriPage() {
         ) : null}
 
         {isLriLoading ? (
-          <DashboardCard
+          <WorkspaceCard
             title="Loading LRI"
             description="Fetching latest score and history."
           />
@@ -288,9 +302,9 @@ export default function LriPage() {
             </div>
 
             <div className="grid gap-4 lg:grid-cols-2">
-              <DashboardCard
+              <WorkspaceCard
                 title="Recommendations"
-                description="Deterministic next steps based on scoring deductions."
+                description="Short next steps."
               >
                 {latestScore.recommendations.length > 0 ? (
                   <ul className="space-y-3">
@@ -322,37 +336,45 @@ export default function LriPage() {
                     No improvement recommendations for this calculation.
                   </p>
                 )}
-              </DashboardCard>
+              </WorkspaceCard>
 
-              <DashboardCard
+              <WorkspaceCard
                 title="Explanation"
                 description={`Calculated on ${formatDate(latestScore.created_at)}.`}
               >
-                <p className="whitespace-pre-wrap text-sm leading-6 text-stone-700">
-                  {latestScore.explanation}
-                </p>
-              </DashboardCard>
+                <ul className="space-y-2">
+                  {getExplanationPoints(latestScore.explanation).map((point) => (
+                    <li
+                      className="flex gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm leading-6 text-slate-700"
+                      key={point}
+                    >
+                      <span className="mt-2 size-1.5 shrink-0 rounded-full bg-slate-400" />
+                      <span>{point}</span>
+                    </li>
+                  ))}
+                </ul>
+              </WorkspaceCard>
             </div>
           </>
         ) : (
-          <DashboardCard
+          <WorkspaceCard
             title="Calculate readiness score"
             description="No LRI score exists for this business yet."
           >
             <button
-              className="inline-flex h-10 items-center justify-center rounded-md bg-emerald-700 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:bg-stone-300"
+              className="inline-flex h-10 items-center justify-center rounded-md bg-red-600 px-4 text-sm font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-stone-300"
               disabled={isCalculating || selectedBusinessId === null}
               onClick={handleCalculate}
               type="button"
             >
-              {isCalculating ? "Calculating..." : "Calculate LRI"}
+              {isCalculating ? "Calculating..." : "Calculate Score"}
             </button>
-          </DashboardCard>
+          </WorkspaceCard>
         )}
 
-        <DashboardCard
+        <WorkspaceCard
           title="Score history"
-          description="Every calculation is stored as a separate LRI score record."
+          description="Past score calculations."
         >
           {history.length === 0 ? (
             <p className="text-sm text-stone-500">No score history yet.</p>
@@ -399,7 +421,7 @@ export default function LriPage() {
               </table>
             </div>
           )}
-        </DashboardCard>
+        </WorkspaceCard>
       </div>
     </AppShell>
   );

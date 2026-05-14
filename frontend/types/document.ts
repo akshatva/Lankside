@@ -21,3 +21,18 @@ export type DocumentRecord = {
   uploaded_at: string;
   processed_at: string | null;
 };
+
+export type DocumentExtraction = {
+  document_id: number;
+  business_id: number;
+  document_type: string;
+  status: string;
+  extraction_status: string;
+  confidence_score: number | null;
+  extracted_fields: Record<string, unknown>;
+  processed_at: string | null;
+};
+
+export type DocumentExtractionList = {
+  extractions: DocumentExtraction[];
+};

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
 import { AppShell } from "@/components/app-shell";
-import { DashboardCard } from "@/components/dashboard-card";
+import { WorkspaceCard } from "@/components/workspace-card";
 import { SectionHeader } from "@/components/section-header";
 import { StatusBadge } from "@/components/status-badge";
 import {
@@ -18,7 +18,7 @@ import type { Business } from "@/types/business";
 import type { ReportSummary } from "@/types/report";
 
 const disclaimer =
-  "This report is informational and should not be treated as a formal financial approval or legal certification document.";
+  "This report is informational. It is not a formal approval.";
 
 function formatDate(value: string | null) {
   if (!value) {
@@ -180,8 +180,8 @@ export default function ReportsPage() {
       <div className="space-y-6">
         <SectionHeader
           eyebrow="Reports"
-          title="Bankability Report Generator"
-          description="Generate an AI-assisted MSME readiness and documentation summary PDF from stored business, document, audit, LRI, MOU, and Grant Scout records."
+          title="Reports"
+          description="Generate a downloadable readiness report."
           action={
             <StatusBadge
               label={`${reports.length} stored`}
@@ -195,31 +195,31 @@ export default function ReportsPage() {
         </div>
 
         {isLoading ? (
-          <DashboardCard title="Loading reports">
+          <WorkspaceCard title="Loading reports">
             <p className="text-sm text-stone-600">Loading business profiles...</p>
-          </DashboardCard>
+          </WorkspaceCard>
         ) : businesses.length === 0 ? (
-          <DashboardCard title="Create a business profile first">
+          <WorkspaceCard title="Create a business profile first">
             <p className="text-sm text-stone-600">
               Reports are generated for an existing business profile.
             </p>
             <Link
-              className="mt-4 inline-flex h-10 items-center justify-center rounded-md bg-emerald-700 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-800"
+              className="mt-4 inline-flex h-10 items-center justify-center rounded-md bg-red-600 px-4 text-sm font-semibold text-white transition hover:bg-red-700"
               href="/onboarding"
             >
               Go to Onboarding
             </Link>
-          </DashboardCard>
+          </WorkspaceCard>
         ) : (
-          <DashboardCard
+          <WorkspaceCard
             title="Generate report"
-            description="Select a business and generate a downloadable readiness PDF."
+            description="Select a business and generate a PDF."
           >
             <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
               <label className="grid gap-2 text-sm font-medium text-stone-700">
                 Business
                 <select
-                  className="h-10 rounded-md border border-stone-300 bg-white px-3 text-sm text-stone-900 outline-none transition focus:border-emerald-500"
+                  className="h-10 rounded-md border border-stone-300 bg-white px-3 text-sm text-stone-900 outline-none transition focus:border-red-500 focus:ring-2 focus:ring-red-100"
                   onChange={(event) => handleBusinessChange(event.target.value)}
                   value={selectedBusinessId ?? ""}
                 >
@@ -231,12 +231,12 @@ export default function ReportsPage() {
                 </select>
               </label>
               <button
-                className="inline-flex h-10 items-center justify-center rounded-md bg-emerald-700 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:bg-stone-300"
+                className="inline-flex h-10 items-center justify-center rounded-md bg-red-600 px-4 text-sm font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-stone-300"
                 disabled={isGenerating || selectedBusinessId === null}
                 onClick={handleGenerate}
                 type="button"
               >
-                {isGenerating ? "Generating..." : "Generate PDF"}
+                {isGenerating ? "Generating..." : "Generate Report"}
               </button>
               {selectedBusiness ? (
                 <p className="text-sm text-stone-500">
@@ -244,7 +244,7 @@ export default function ReportsPage() {
                 </p>
               ) : null}
             </div>
-          </DashboardCard>
+          </WorkspaceCard>
         )}
 
         {error ? (
@@ -258,9 +258,9 @@ export default function ReportsPage() {
           </p>
         ) : null}
 
-        <DashboardCard
-          title="Generated reports"
-          description="Stored metadata for generated report PDFs."
+        <WorkspaceCard
+          title="Report history"
+          description="Generated reports for this business."
         >
           {reports.length === 0 ? (
             <p className="text-sm text-stone-500">
@@ -296,7 +296,7 @@ export default function ReportsPage() {
                         <div className="flex flex-wrap gap-2">
                           {report.status === "GENERATED" ? (
                             <a
-                              className="inline-flex h-9 items-center justify-center rounded-md border border-stone-300 px-3 text-sm font-semibold text-stone-700 transition hover:border-emerald-300 hover:text-emerald-800"
+                              className="inline-flex h-9 items-center justify-center rounded-md border border-stone-300 px-3 text-sm font-semibold text-stone-700 transition hover:bg-stone-50"
                               href={downloadReportPDF(report.id)}
                             >
                               Download
@@ -318,7 +318,7 @@ export default function ReportsPage() {
               </table>
             </div>
           )}
-        </DashboardCard>
+        </WorkspaceCard>
       </div>
     </AppShell>
   );
