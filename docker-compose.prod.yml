@@ -52,7 +52,7 @@ services:
       target: production
     container_name: lankside_prod_backend
     restart: unless-stopped
-    command: gunicorn app.main:app -k uvicorn.workers.UvicornWorker -w ${BACKEND_WORKERS:-2} -b 0.0.0.0:8000
+    command: sh -c "alembic upgrade head && gunicorn app.main:app -k uvicorn.workers.UvicornWorker -w $${BACKEND_WORKERS:-2} -b 0.0.0.0:8000"
     environment:
       PROJECT_NAME: ${PROJECT_NAME:-Lankside API}
       ENVIRONMENT: ${ENVIRONMENT:-production}
