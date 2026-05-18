@@ -18,7 +18,7 @@ CMD ["npm", "run", "dev"]
 
 FROM deps AS builder
 
-ARG NEXT_PUBLIC_API_URL=
+ARG NEXT_PUBLIC_API_URL=/api/backend
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 
 COPY . .
@@ -31,7 +31,7 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
-ENV NEXT_PUBLIC_API_URL=
+ENV NEXT_PUBLIC_API_URL=/api/backend
 
 COPY package*.json ./
 RUN npm ci --omit=dev

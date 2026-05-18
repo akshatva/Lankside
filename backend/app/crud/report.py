@@ -2,18 +2,27 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.models.report import BankabilityReport
 from app.schemas.report import ReportCreate, ReportUpdate
 
 
+def _commit_and_refresh(db: Session, report: BankabilityReport) -> BankabilityReport:
+    try:
+        db.commit()
+        db.refresh(report)
+    except SQLAlchemyError:
+        db.rollback()
+        raise
+    return report
+
+
 def create_report(db: Session, report_in: ReportCreate) -> BankabilityReport:
     report = BankabilityReport(**report_in.model_dump())
     db.add(report)
-    db.commit()
-    db.refresh(report)
-    return report
+    return _commit_and_refresh(db, report)
 
 
 def get_report(db: Session, report_id: int) -> BankabilityReport | None:
@@ -53,14 +62,16 @@ def update_report(
     if report.status == "GENERATED" and report.generated_at is None:
         report.generated_at = datetime.now(timezone.utc)
     db.add(report)
-    db.commit()
-    db.refresh(report)
-    return report
+    return _commit_and_refresh(db, report)
 
 
 def delete_report(db: Session, report: BankabilityReport) -> None:
     db.delete(report)
-    db.commit()
+    try:
+        db.commit()
+    except SQLAlchemyError:
+        db.rollback()
+        raise
 
 
 def update_report_status(
@@ -72,9 +83,7 @@ def update_report_status(
     if status == "GENERATED":
         report.generated_at = datetime.now(timezone.utc)
     db.add(report)
-    db.commit()
-    db.refresh(report)
-    return report
+    return _commit_and_refresh(db, report)
 
 
 def update_report_pdf_path(
@@ -84,6 +93,4 @@ def update_report_pdf_path(
 ) -> BankabilityReport:
     report.pdf_path = pdf_path
     db.add(report)
-    db.commit()
-    db.refresh(report)
-    return report
+    return _commit_and_refresh(db, report)

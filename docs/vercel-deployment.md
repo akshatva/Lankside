@@ -22,10 +22,12 @@ npm run build
 `frontend/.env.example` contains:
 
 ```bash
-NEXT_PUBLIC_API_URL=http://localhost:8000
+BACKEND_API_URL=http://localhost:8000
+NEXT_PUBLIC_API_URL=/api/backend
 ```
 
-For deployed environments, replace this value with the public backend origin.
+For deployed environments, replace `BACKEND_API_URL` with the public backend
+origin.
 
 ## Push to GitHub
 
@@ -61,11 +63,13 @@ Add this environment variable in Vercel for Production, Preview, and Development
 as needed:
 
 ```bash
-NEXT_PUBLIC_API_URL=https://your-backend.example.com
+BACKEND_API_URL=https://your-backend.example.com
+NEXT_PUBLIC_API_URL=/api/backend
 ```
 
-Use the public FastAPI backend origin only. Do not use Docker Compose service
-names such as `backend`, and do not rely on `localhost` for Vercel deployments.
+Use the public FastAPI backend origin for `BACKEND_API_URL`. Do not use Docker
+Compose service names such as `backend`, and do not rely on `localhost` for
+Vercel deployments.
 
 ## Backend Notes
 
@@ -80,6 +84,5 @@ Confirm these backend settings:
 
 ## Redeploying
 
-After changing `NEXT_PUBLIC_API_URL`, trigger a new Vercel deployment. Next.js
-inlines `NEXT_PUBLIC_*` values into the frontend build, so changing the variable
-requires a rebuild.
+After changing `BACKEND_API_URL`, trigger a new Vercel deployment or restart so
+the server-side proxy reads the updated value.

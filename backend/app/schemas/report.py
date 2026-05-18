@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Any, Literal, Optional
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 ReportType = Literal["BANKABILITY_REPORT"]
 ReportStatus = Literal["GENERATING", "GENERATED", "FAILED"]
@@ -28,7 +28,7 @@ class ReportCreate(BaseModel):
     business_id: int
     report_type: ReportType = "BANKABILITY_REPORT"
     status: ReportStatus = "GENERATING"
-    summary: dict[str, Any] = {}
+    summary: dict[str, Any] = Field(default_factory=dict)
     summary_text: str = ""
     pdf_path: Optional[str] = None
     generated_at: Optional[datetime] = None

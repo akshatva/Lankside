@@ -1,8 +1,10 @@
+import logging
 from pathlib import Path
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import FileResponse
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
@@ -26,6 +28,7 @@ from app.services.report_aggregator import aggregate_bankability_report_data
 from app.services.report_generator import generate_report_pdf
 
 router = APIRouter(prefix="/reports")
+logger = logging.getLogger(__name__)
 
 ALLOWED_REPORT_STATUSES = {"GENERATING", "GENERATED", "FAILED"}
 
@@ -57,7 +60,16 @@ def generate_report(
     business_id: int,
     db: Session = Depends(get_db),
 ) -> ReportGenerateResponse:
-    business = get_business(db, business_id)
+    try:
+        business = get_business(db, business_id)
+    except SQLAlchemyError:
+        db.rollback()
+        logger.exception(
+            "Report generation business lookup failed",
+            extra={"business_id": business_id},
+        )
+        raise
+
     if business is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -65,6 +77,7 @@ def generate_report(
         )
 
     report = None
+    report_id: Optional[int] = None
     try:
         report_data = aggregate_bankability_report_data(db, business_id)
         report = create_report(
@@ -76,18 +89,56 @@ def generate_report(
                 summary_text=report_data["executive_summary"]["summary_text"],
             ),
         )
-        pdf_path = generate_report_pdf(report_data, report_id=report.id)
+        report_id = report.id
+        pdf_path = generate_report_pdf(report_data, report_id=report_id)
         return update_report(
             db,
             report,
             ReportUpdate(status="GENERATED", pdf_path=pdf_path),
         )
-    except (RuntimeError, ValueError) as exc:
-        if report is not None:
-            update_report(db, report, ReportUpdate(status="FAILED"))
+    except ValueError as exc:
+        db.rollback()
+        if report_id is not None:
+            _mark_report_failed(db, report_id, business_id)
+        logger.warning(
+            "Report generation rejected",
+            extra={"business_id": business_id, "report_id": report_id},
+            exc_info=exc,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Unable to generate report from the current business data.",
+        ) from exc
+    except SQLAlchemyError:
+        db.rollback()
+        logger.exception(
+            "Report generation database operation failed",
+            extra={"business_id": business_id, "report_id": report_id},
+        )
+        raise
+    except (OSError, RuntimeError) as exc:
+        db.rollback()
+        if report_id is not None:
+            _mark_report_failed(db, report_id, business_id)
+        logger.exception(
+            "Report PDF generation failed",
+            extra={"business_id": business_id, "report_id": report_id},
+        )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=str(exc),
+            detail="Unable to generate report PDF. Please try again.",
+        ) from exc
+    except Exception as exc:
+        db.rollback()
+        if report_id is not None:
+            _mark_report_failed(db, report_id, business_id)
+        logger.exception(
+            "Unexpected report generation failure",
+            extra={"business_id": business_id, "report_id": report_id},
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Unable to generate report. Please try again.",
         ) from exc
 
 
@@ -157,3 +208,16 @@ def _remove_report_pdf(pdf_path: Optional[str]) -> None:
     if report_root not in (file_path, *file_path.parents):
         return
     file_path.unlink(missing_ok=True)
+
+
+def _mark_report_failed(db: Session, report_id: int, business_id: int) -> None:
+    try:
+        failed_report = get_report(db, report_id)
+        if failed_report is not None:
+            update_report(db, failed_report, ReportUpdate(status="FAILED"))
+    except SQLAlchemyError:
+        db.rollback()
+        logger.exception(
+            "Failed to mark report as FAILED",
+            extra={"business_id": business_id, "report_id": report_id},
+        )

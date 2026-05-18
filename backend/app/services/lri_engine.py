@@ -178,7 +178,7 @@ def _calculate_document_integrity(
             )
 
     for finding in findings:
-        severity = finding.severity.upper()
+        severity = _normalize_code(getattr(finding, "severity", None))
         if severity == "HIGH":
             tracker.deduct(
                 10,
@@ -366,7 +366,9 @@ def _calculate_financial_consistency(
 def _latest_documents_by_type(documents: Iterable[Document]) -> dict[str, Document]:
     latest_documents: dict[str, Document] = {}
     for document in documents:
-        latest_documents.setdefault(document.document_type, document)
+        document_type = _normalize_code(getattr(document, "document_type", None))
+        if document_type:
+            latest_documents.setdefault(document_type, document)
     return latest_documents
 
 
@@ -464,20 +466,27 @@ def _is_bank_holder_mismatch(finding: AuditFinding) -> bool:
 
 def _finding_text(finding: AuditFinding) -> str:
     values = [
-        finding.finding_type,
-        finding.title,
-        finding.description,
-        finding.field_name or "",
+        getattr(finding, "finding_type", None),
+        getattr(finding, "title", None),
+        getattr(finding, "description", None),
+        getattr(finding, "field_name", None),
     ]
-    return " ".join(values).lower()
+    return " ".join(str(value) for value in values if value is not None).lower()
 
 
 def _mou_status(record: dict[str, Any]) -> str:
-    return str(record.get("status") or "").strip().upper()
+    return _normalize_code(record.get("status"))
 
 
 def _status(document: Document) -> str:
-    return str(document.status or "").strip().upper()
+    return _normalize_code(getattr(document, "status", None))
+
+
+def _normalize_code(value: Any) -> str:
+    if value is None:
+        return ""
+    enum_value = getattr(value, "value", value)
+    return str(enum_value).strip().upper()
 
 
 def _has_value(value: Any) -> bool:

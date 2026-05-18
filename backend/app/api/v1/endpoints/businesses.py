@@ -1,4 +1,7 @@
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.crud.business import (
@@ -13,6 +16,7 @@ from app.models.user import User
 from app.schemas.business import BusinessCreate, BusinessRead, BusinessUpdate
 
 router = APIRouter(prefix="/businesses")
+logger = logging.getLogger(__name__)
 
 DEMO_USER_EMAIL = "demo@lankside.local"
 DEMO_USER_FULL_NAME = "Demo User"
@@ -24,7 +28,15 @@ def get_or_create_demo_user(db: Session) -> User:
         return user
     user = User(email=DEMO_USER_EMAIL, full_name=DEMO_USER_FULL_NAME)
     db.add(user)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        user = db.query(User).filter(User.email == DEMO_USER_EMAIL).first()
+        if user:
+            return user
+        logger.exception("Demo user insert hit an integrity error but no row exists.")
+        raise
     db.refresh(user)
     return user
 

@@ -62,11 +62,8 @@ export function FeaturesSection() {
   return (
     <section
       id="capabilities"
-      className="relative flex min-h-screen snap-start snap-always items-center overflow-hidden bg-black px-5 py-24 text-white sm:px-8 lg:py-28"
+      className="relative flex min-h-screen snap-start snap-always items-center overflow-hidden bg-black bg-[radial-gradient(circle_at_0%_20%,rgba(6,182,212,0.14),transparent_30%),radial-gradient(circle_at_100%_80%,rgba(249,115,22,0.12),transparent_30%)] px-5 py-24 text-white sm:px-8 lg:py-28"
     >
-      <div className="absolute left-[-12rem] top-24 size-80 rounded-full bg-cyan-500/10 blur-3xl" />
-      <div className="absolute bottom-10 right-[-10rem] size-80 rounded-full bg-orange-500/10 blur-3xl" />
-
       <div className="relative mx-auto w-full max-w-7xl">
         <div className="max-w-3xl">
           <p className="mb-4 text-sm font-medium tracking-wide text-cyan-200">
@@ -92,7 +89,7 @@ export function FeaturesSection() {
           integration={<FeatureCard feature={auditor} tall />}
           trackers={<FeatureCard feature={lri} />}
           statistic={
-            <Card className="relative h-full overflow-hidden border-white/10 bg-white/[0.055] text-white shadow-2xl shadow-black/30 backdrop-blur-xl">
+            <Card className="relative h-full overflow-hidden border-white/10 bg-white/[0.055] text-white shadow-lg shadow-black/20">
               <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_40%,rgba(6,182,212,0.18),transparent_54%)]" />
               <CardContent className="relative z-10 flex h-full flex-col items-center justify-center p-6 text-center">
                 <span className="text-6xl font-semibold tracking-normal text-white">
@@ -123,7 +120,7 @@ function FeatureCard({
   const Icon = feature.icon;
 
   return (
-    <Card className="group relative h-full overflow-hidden border-white/10 bg-white/[0.055] text-white shadow-2xl shadow-black/30 backdrop-blur-xl transition duration-300 hover:-translate-y-1 hover:border-cyan-300/35 hover:bg-white/[0.075]">
+    <Card className="group relative h-full overflow-hidden border-white/10 bg-white/[0.055] text-white shadow-lg shadow-black/20 transition-colors duration-200 hover:border-cyan-300/35 hover:bg-white/[0.075]">
       <div className="absolute inset-x-4 top-0 h-px bg-gradient-to-r from-transparent via-cyan-300/40 to-transparent" />
       <CardHeader className={wide ? "p-5" : "p-5"}>
         <div className="mb-2 flex size-11 items-center justify-center rounded-lg border border-white/10 bg-black/30 text-cyan-100 shadow-lg shadow-cyan-950/30">

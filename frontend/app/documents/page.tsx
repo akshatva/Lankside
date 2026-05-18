@@ -13,6 +13,7 @@ import {
   WorkspaceInput,
   WorkspaceSelect,
 } from "@/components/ui/form-field";
+import { LoadingState, WorkspaceSkeleton } from "@/components/ui/loading-state";
 import { MetricCard } from "@/components/ui/metric-card";
 import { StatusPill } from "@/components/ui/status-pill";
 import {
@@ -105,9 +106,13 @@ export default function DocumentsPage() {
   const [activeExtraction, setActiveExtraction] =
     useState<DocumentExtraction | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isDocumentLoading, setIsDocumentLoading] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [isDeletingId, setIsDeletingId] = useState<number | null>(null);
   const [isExtractingId, setIsExtractingId] = useState<number | null>(null);
+  const [viewingExtractionId, setViewingExtractionId] = useState<number | null>(
+    null,
+  );
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
@@ -117,9 +122,11 @@ export default function DocumentsPage() {
     [businesses, selectedBusinessId],
   );
 
-  const completedCount = documents.filter(
-    (document) => document.status === "COMPLETED",
-  ).length;
+  const completedCount = useMemo(
+    () =>
+      documents.filter((document) => document.status === "COMPLETED").length,
+    [documents],
+  );
 
   useEffect(() => {
     let isMounted = true;
@@ -172,23 +179,32 @@ export default function DocumentsPage() {
       return;
     }
 
-    const [loadedDocuments, loadedExtractions] = await Promise.all([
-      getDocuments({ businessId }),
-      getDocumentExtractions(businessId),
-    ]);
-    setDocuments(loadedDocuments);
-    setExtractions(
-      Object.fromEntries(
-        loadedExtractions.map((extraction) => [
-          extraction.document_id,
-          extraction,
-        ]),
-      ),
-    );
+    setIsDocumentLoading(true);
+    try {
+      const [loadedDocuments, loadedExtractions] = await Promise.all([
+        getDocuments({ businessId }),
+        getDocumentExtractions(businessId),
+      ]);
+      setDocuments(loadedDocuments);
+      setExtractions(
+        Object.fromEntries(
+          loadedExtractions.map((extraction) => [
+            extraction.document_id,
+            extraction,
+          ]),
+        ),
+      );
+    } finally {
+      setIsDocumentLoading(false);
+    }
   }
 
   async function handleBusinessChange(value: string) {
     const businessId = Number(value);
+    if (businessId === selectedBusinessId) {
+      return;
+    }
+
     setSelectedBusinessId(businessId);
     setError(null);
     setSuccess(null);
@@ -274,6 +290,7 @@ export default function DocumentsPage() {
 
   async function handleViewExtraction(documentId: number) {
     setError(null);
+    setViewingExtractionId(documentId);
     try {
       const extraction = await getDocumentExtraction(documentId);
       setExtractions((current) => ({ ...current, [documentId]: extraction }));
@@ -284,6 +301,8 @@ export default function DocumentsPage() {
           ? viewError.message
           : "Unable to load extraction.",
       );
+    } finally {
+      setViewingExtractionId(null);
     }
   }
 
@@ -333,7 +352,8 @@ export default function DocumentsPage() {
 
         {isLoading ? (
           <WorkspaceCard title="Loading documents">
-            <ErrorState tone="neutral">Loading document workspace...</ErrorState>
+            <LoadingState label="Loading document workspace..." />
+            <WorkspaceSkeleton className="mt-4" rows={4} />
           </WorkspaceCard>
         ) : businesses.length === 0 ? (
           <EmptyState
@@ -376,6 +396,7 @@ export default function DocumentsPage() {
                 <div className="grid gap-4 lg:grid-cols-[minmax(180px,1fr)_minmax(180px,1fr)_minmax(220px,1.35fr)]">
                   <FormField label="Business">
                     <WorkspaceSelect
+                      disabled={isDocumentLoading || isUploading}
                       onChange={(event) =>
                         handleBusinessChange(event.target.value)
                       }
@@ -391,6 +412,7 @@ export default function DocumentsPage() {
 
                   <FormField label="Document type">
                     <WorkspaceSelect
+                      disabled={isUploading}
                       onChange={(event) =>
                         setDocumentType(event.target.value as DocumentType)
                       }
@@ -411,6 +433,7 @@ export default function DocumentsPage() {
                     <WorkspaceInput
                       accept=".pdf,.png,.jpg,.jpeg,application/pdf,image/png,image/jpeg"
                       className="py-2 file:mr-3 file:rounded-md file:border-0 file:bg-red-600 file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-white"
+                      disabled={isUploading}
                       onChange={(event) =>
                         setSelectedFile(event.target.files?.[0] ?? null)
                       }
@@ -420,7 +443,11 @@ export default function DocumentsPage() {
                 </div>
 
                 <div className="flex flex-wrap items-center gap-3">
-                  <WorkspaceButton disabled={isUploading} type="submit" size="lg">
+                  <WorkspaceButton
+                    disabled={isUploading || isDocumentLoading}
+                    type="submit"
+                    size="lg"
+                  >
                     {isUploading ? "Uploading..." : "Upload document"}
                   </WorkspaceButton>
                   <p className="text-sm text-stone-500">
@@ -439,7 +466,12 @@ export default function DocumentsPage() {
               title="Uploaded documents"
               description="Run extraction, view, download, or delete files."
             >
-              {documents.length === 0 ? (
+              {isDocumentLoading ? (
+                <>
+                  <LoadingState label="Refreshing documents and extractions..." />
+                  <WorkspaceSkeleton className="mt-4" rows={4} />
+                </>
+              ) : documents.length === 0 ? (
                 <EmptyState
                   title="Upload GST, Udyam, PAN, Bank Statement, or ITR to begin."
                   description="Uploaded documents appear here."
@@ -482,7 +514,11 @@ export default function DocumentsPage() {
                           <WorkspaceTd>
                             <div className="flex flex-wrap gap-2">
                               <WorkspaceButton
-                                disabled={isExtractingId === document.id}
+                                disabled={
+                                  isDocumentLoading ||
+                                  isExtractingId === document.id ||
+                                  viewingExtractionId === document.id
+                                }
                                 onClick={() => handleRunExtraction(document.id)}
                                 type="button"
                                 variant="secondary"
@@ -498,12 +534,18 @@ export default function DocumentsPage() {
                                     ? "View extraction"
                                     : "Fetch extraction"
                                 }
+                                disabled={
+                                  isDocumentLoading ||
+                                  viewingExtractionId === document.id
+                                }
                                 onClick={() => handleViewExtraction(document.id)}
                                 type="button"
                                 variant="ghost"
                                 size="sm"
                               >
-                                View
+                                {viewingExtractionId === document.id
+                                  ? "Loading..."
+                                  : "View"}
                               </WorkspaceButton>
                               <WorkspaceButton asChild variant="ghost" size="sm">
                                 <a href={downloadDocument(document.id)}>Download</a>

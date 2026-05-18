@@ -57,11 +57,94 @@ export type BackendStatus = {
   redis_url_present: boolean;
 };
 
+export class BackendApiError extends Error {
+  status?: number;
+
+  constructor(message: string, status?: number) {
+    super(message);
+    this.name = "BackendApiError";
+    this.status = status;
+  }
+}
+
+const DEFAULT_REQUEST_TIMEOUT_MS = 15_000;
+const LONG_REQUEST_TIMEOUT_MS = 75_000;
+const inFlightGetRequests = new Map<string, Promise<ApiResult<unknown>>>();
+const loggedWarnings = new Set<string>();
+
+function logApiWarningOnce(key: string, message: string) {
+  if (loggedWarnings.has(key) || typeof console === "undefined") {
+    return;
+  }
+
+  loggedWarnings.add(key);
+  console.warn(message);
+}
+
+function getRequestTimeout(method: string) {
+  return method === "GET" || method === "HEAD"
+    ? DEFAULT_REQUEST_TIMEOUT_MS
+    : LONG_REQUEST_TIMEOUT_MS;
+}
+
+function getTimeoutErrorMessage(timeoutMs: number) {
+  return `Server waking up... The request took longer than ${Math.round(
+    timeoutMs / 1000,
+  )}s. Please try again shortly.`;
+}
+
 async function requestBackend<T>(
   path: string,
   options: RequestInit = {},
 ): Promise<ApiResult<T>> {
   warnIfUsingApiBaseUrlFallback();
+
+  const method = (options.method ?? "GET").toUpperCase();
+  const timeoutMs = getRequestTimeout(method);
+  const requestKey = `${method}:${path}`;
+  const canDedupe =
+    method === "GET" && !options.body && !options.signal && !options.headers;
+
+  if (canDedupe) {
+    const inFlight = inFlightGetRequests.get(requestKey);
+    if (inFlight) {
+      return inFlight as Promise<ApiResult<T>>;
+    }
+  }
+
+  const requestPromise = executeBackendRequest<T>(path, options, timeoutMs);
+
+  if (canDedupe) {
+    inFlightGetRequests.set(requestKey, requestPromise as Promise<ApiResult<unknown>>);
+    requestPromise.finally(() => {
+      inFlightGetRequests.delete(requestKey);
+    });
+  }
+
+  return requestPromise;
+}
+
+async function executeBackendRequest<T>(
+  path: string,
+  options: RequestInit,
+  timeoutMs: number,
+): Promise<ApiResult<T>> {
+  const controller = new AbortController();
+  let didTimeout = false;
+  const timeoutId = globalThis.setTimeout(() => {
+    didTimeout = true;
+    controller.abort();
+  }, timeoutMs);
+
+  if (options.signal) {
+    if (options.signal.aborted) {
+      controller.abort();
+    } else {
+      options.signal.addEventListener("abort", () => controller.abort(), {
+        once: true,
+      });
+    }
+  }
 
   try {
     const headers =
@@ -78,8 +161,9 @@ async function requestBackend<T>(
 
     const response = await fetch(`${backendApiUrl}${path}`, {
       cache: "no-store",
-      headers,
       ...options,
+      headers,
+      signal: controller.signal,
     });
 
     if (!response.ok) {
@@ -129,13 +213,38 @@ async function requestBackend<T>(
     const isNetworkFailure =
       error instanceof TypeError ||
       /failed to fetch|load failed|networkerror/i.test(message);
+    const wasAborted =
+      didTimeout ||
+      (error instanceof DOMException && error.name === "AbortError");
+
+    if (wasAborted) {
+      const timeoutMessage = getTimeoutErrorMessage(timeoutMs);
+      logApiWarningOnce(
+        "backend-timeout",
+        `Backend request timeout through ${backendApiUrl}. The server may be waking up.`,
+      );
+
+      return {
+        ok: false,
+        error: timeoutMessage,
+      };
+    }
+
+    if (isNetworkFailure) {
+      logApiWarningOnce(
+        "backend-network",
+        `Unable to reach backend API through ${backendApiUrl}.`,
+      );
+    }
 
     return {
       ok: false,
       error: isNetworkFailure
-        ? `Unable to reach backend API at ${backendApiUrl}. Start the backend or set NEXT_PUBLIC_API_URL to a reachable API URL.`
+        ? `Unable to reach backend API through ${backendApiUrl}. Start the backend or set BACKEND_API_URL to a reachable API URL.`
         : message,
     };
+  } finally {
+    globalThis.clearTimeout(timeoutId);
   }
 }
 
@@ -153,7 +262,7 @@ export function getBackendStatus() {
 
 async function unwrapApiResult<T>(result: ApiResult<T>): Promise<T> {
   if (!result.ok) {
-    throw new Error(result.error);
+    throw new BackendApiError(result.error, result.status);
   }
 
   return result.data;

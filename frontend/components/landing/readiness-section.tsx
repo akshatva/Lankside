@@ -45,10 +45,9 @@ export function ReadinessSection() {
   return (
     <section
       id="readiness"
-      className="relative flex min-h-screen snap-start snap-always items-center overflow-hidden bg-black px-5 py-24 text-white sm:px-8 lg:py-28"
+      className="relative flex min-h-screen snap-start snap-always items-center overflow-hidden bg-black bg-[radial-gradient(circle_at_50%_12%,rgba(6,182,212,0.13),transparent_34%)] px-5 py-24 text-white sm:px-8 lg:py-28"
     >
       <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
-      <div className="absolute left-1/2 top-20 h-72 w-[32rem] -translate-x-1/2 rounded-full bg-cyan-500/10 blur-3xl" />
 
       <div className="relative mx-auto grid w-full max-w-7xl gap-12 lg:grid-cols-[1fr_0.72fr] lg:items-start">
         <div>
@@ -68,7 +67,7 @@ export function ReadinessSection() {
             integration={<IntelligenceBentoCard card={intelligenceCards[0]} tall />}
             trackers={<IntelligenceBentoCard card={intelligenceCards[1]} />}
             statistic={
-              <Card className="relative h-full overflow-hidden border-white/10 bg-white/[0.055] text-white backdrop-blur-xl">
+              <Card className="relative h-full overflow-hidden border-white/10 bg-white/[0.055] text-white">
                 <CardContent className="flex h-full items-center justify-center p-6">
                   <span className="font-mono text-5xl font-semibold text-white">
                     LRI
@@ -78,7 +77,7 @@ export function ReadinessSection() {
             }
             focus={<IntelligenceBentoCard card={intelligenceCards[2]} />}
             productivity={
-              <Card className="h-full border-white/10 bg-white/[0.055] text-white backdrop-blur-xl">
+              <Card className="h-full border-white/10 bg-white/[0.055] text-white">
                 <CardHeader className="p-5">
                   <Badge
                     variant="outline"
@@ -97,7 +96,7 @@ export function ReadinessSection() {
               </Card>
             }
             shortcuts={
-              <Card className="h-full border-white/10 bg-white/[0.055] text-white backdrop-blur-xl">
+              <Card className="h-full border-white/10 bg-white/[0.055] text-white">
                 <CardContent className="flex h-full flex-wrap items-center justify-between gap-4 p-6">
                   <div>
                     <CardTitle className="text-base font-semibold text-white">
@@ -120,7 +119,7 @@ export function ReadinessSection() {
           />
         </div>
 
-        <aside className="rounded-lg border border-white/10 bg-white/[0.06] p-6 shadow-2xl shadow-black/40 backdrop-blur-xl">
+        <aside className="rounded-lg border border-white/10 bg-white/[0.06] p-6 shadow-lg shadow-black/20">
           <div className="flex items-center justify-between gap-4">
             <p className="text-sm font-medium tracking-wide text-white/70">
               LRI formula
@@ -170,7 +169,7 @@ function IntelligenceBentoCard({
   const Icon = card.icon;
 
   return (
-    <Card className="h-full border-white/10 bg-white/[0.055] text-white backdrop-blur-xl transition duration-300 hover:-translate-y-1 hover:border-cyan-300/35 hover:bg-white/[0.075]">
+    <Card className="h-full border-white/10 bg-white/[0.055] text-white transition-colors duration-200 hover:border-cyan-300/35 hover:bg-white/[0.075]">
       <CardHeader className="p-5">
         <div className="mb-2 flex size-10 items-center justify-center rounded-lg border border-white/10 bg-black/30 text-orange-100">
           <Icon className="size-5" aria-hidden="true" />

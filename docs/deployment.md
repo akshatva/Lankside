@@ -76,6 +76,7 @@ Production variables to review:
 - `CELERY_BROKER_URL`
 - `CELERY_RESULT_BACKEND`
 - `BACKEND_CORS_ORIGINS`
+- `BACKEND_API_URL`
 - `NEXT_PUBLIC_API_URL`
 - `GEMINI_API_KEY`
 - `GEMINI_MODEL`
@@ -92,9 +93,12 @@ Production variables to review:
 Never commit real production secrets. Use strong database passwords and inject
 keys through `.env.production` or a secure host-level secret mechanism.
 
-For Nginx same-origin routing, `NEXT_PUBLIC_API_URL` can be empty. The frontend
-will call `/api/v1/...` relative to the public site. For a separate API domain,
-set it to the public origin, for example `https://api.example.com`.
+The frontend browser calls `/api/backend` on the same origin. Set
+`BACKEND_API_URL` to the backend origin that the Next.js server can reach. In
+Docker Compose this is `http://backend:8000`; on Vercel or another separate
+frontend host this should be the public FastAPI origin, for example
+`https://api.example.com`. Keep `NEXT_PUBLIC_API_URL=/api/backend` unless you
+intentionally bypass the proxy.
 
 ## Production Startup
 

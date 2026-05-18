@@ -9,6 +9,7 @@ import { StatusBadge } from "@/components/status-badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ErrorState } from "@/components/ui/error-state";
 import { FormField, WorkspaceSelect } from "@/components/ui/form-field";
+import { LoadingState, WorkspaceSkeleton } from "@/components/ui/loading-state";
 import { MetricCard } from "@/components/ui/metric-card";
 import { StatusPill } from "@/components/ui/status-pill";
 import {
@@ -76,16 +77,16 @@ export default function AuditPage() {
     [businesses, selectedBusinessId],
   );
 
-  const unresolvedFindings = findings.filter((finding) => !finding.is_resolved);
-  const highCount = unresolvedFindings.filter(
-    (finding) => finding.severity === "HIGH",
-  ).length;
-  const mediumCount = unresolvedFindings.filter(
-    (finding) => finding.severity === "MEDIUM",
-  ).length;
-  const lowCount = unresolvedFindings.filter(
-    (finding) => finding.severity === "LOW",
-  ).length;
+  const findingStats = useMemo(() => {
+    const unresolved = findings.filter((finding) => !finding.is_resolved);
+
+    return {
+      unresolved,
+      high: unresolved.filter((finding) => finding.severity === "HIGH").length,
+      medium: unresolved.filter((finding) => finding.severity === "MEDIUM").length,
+      low: unresolved.filter((finding) => finding.severity === "LOW").length,
+    };
+  }, [findings]);
 
   const loadFindings = useCallback(async (businessId: number | null) => {
     if (!businessId) {
@@ -143,6 +144,10 @@ export default function AuditPage() {
 
   async function handleBusinessChange(value: string) {
     const businessId = Number(value);
+    if (businessId === selectedBusinessId) {
+      return;
+    }
+
     setSelectedBusinessId(businessId);
     setError(null);
     setSuccess(null);
@@ -231,15 +236,16 @@ export default function AuditPage() {
           description="Find document mismatches before applying."
           action={
             <StatusBadge
-              label={`${unresolvedFindings.length} unresolved`}
-              tone={unresolvedFindings.length > 0 ? "pending" : "online"}
+              label={`${findingStats.unresolved.length} unresolved`}
+              tone={findingStats.unresolved.length > 0 ? "pending" : "online"}
             />
           }
         />
 
         {isLoading ? (
           <WorkspaceCard title="Loading audit workspace">
-            <ErrorState tone="neutral">Loading profiles and findings...</ErrorState>
+            <LoadingState label="Loading profiles and findings..." />
+            <WorkspaceSkeleton className="mt-4" rows={4} />
           </WorkspaceCard>
         ) : businesses.length === 0 ? (
           <EmptyState
@@ -258,7 +264,7 @@ export default function AuditPage() {
               description="Select a business and check the uploaded records."
               action={
                 <WorkspaceButton
-                  disabled={isRunning || selectedBusinessId === null}
+                  disabled={isRunning || isAuditLoading || selectedBusinessId === null}
                   onClick={handleRunAudit}
                   type="button"
                   size="lg"
@@ -270,6 +276,7 @@ export default function AuditPage() {
               <div className="grid gap-4 md:grid-cols-[minmax(220px,0.6fr)_1fr] md:items-end">
                 <FormField label="Business">
                   <WorkspaceSelect
+                    disabled={isAuditLoading || isRunning}
                     onChange={(event) => handleBusinessChange(event.target.value)}
                     value={selectedBusinessId ?? ""}
                   >
@@ -299,19 +306,19 @@ export default function AuditPage() {
               />
               <MetricCard
                 label="High Risk"
-                value={highCount}
+                value={findingStats.high}
                 tone="danger"
                 description="Fix first"
               />
               <MetricCard
                 label="Medium Risk"
-                value={mediumCount}
+                value={findingStats.medium}
                 tone="warning"
                 description="Review soon"
               />
               <MetricCard
                 label="Low Risk"
-                value={lowCount}
+                value={findingStats.low}
                 tone="neutral"
                 description="Minor issues"
               />
@@ -325,14 +332,17 @@ export default function AuditPage() {
               description="Review severity and recommended fixes."
             >
               {isAuditLoading ? (
-                <ErrorState tone="neutral">Loading findings...</ErrorState>
+                <>
+                  <LoadingState label="Loading findings..." />
+                  <WorkspaceSkeleton className="mt-4" rows={4} />
+                </>
               ) : findings.length === 0 ? (
                 <EmptyState
                   title="No audit run yet"
                   description="Run audit to create findings."
                   action={
                     <WorkspaceButton
-                      disabled={isRunning}
+                      disabled={isRunning || isAuditLoading}
                       onClick={handleRunAudit}
                       type="button"
                     >

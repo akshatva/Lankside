@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -72,8 +73,9 @@ def generate_report_pdf(report_data: dict[str, Any], report_id: int | None = Non
     except ImportError as exc:
         raise RuntimeError("ReportLab is required for report PDF export.") from exc
 
+    os.makedirs(settings.upload_dir, exist_ok=True)
+    os.makedirs(settings.report_output_dir, exist_ok=True)
     output_dir = Path(settings.report_output_dir).expanduser().resolve()
-    output_dir.mkdir(parents=True, exist_ok=True)
     suffix = f"{report_id}-" if report_id is not None else ""
     file_path = output_dir / f"bankability-report-{suffix}{uuid4().hex}.pdf"
 

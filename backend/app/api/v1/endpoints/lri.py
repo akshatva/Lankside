@@ -26,7 +26,13 @@ def calculate_lri(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Business profile not found.",
         )
-    return calculate_lri_for_business(db, business_id)
+    try:
+        return calculate_lri_for_business(db, business_id)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(exc),
+        ) from exc
 
 
 @router.get("/{business_id}/latest", response_model=LRIScoreRead)

@@ -7,7 +7,9 @@ import { WorkspaceCard } from "@/components/workspace-card";
 import { ScoreCard } from "@/components/score-card";
 import { SectionHeader } from "@/components/section-header";
 import { StatusBadge } from "@/components/status-badge";
+import { LoadingState, WorkspaceSkeleton } from "@/components/ui/loading-state";
 import {
+  BackendApiError,
   calculateLRI,
   getBusinesses,
   getLRIHistory,
@@ -50,6 +52,14 @@ function getExplanationPoints(explanation: string) {
     .split(/\n+|(?<=\.)\s+/)
     .map((point) => point.replace(/^[-*]\s*/, "").trim())
     .filter(Boolean);
+}
+
+function isNoLatestScoreError(error: unknown) {
+  return (
+    error instanceof BackendApiError &&
+    error.status === 404 &&
+    error.message.toLowerCase().includes("lri score")
+  );
 }
 
 export default function LriPage() {
@@ -131,7 +141,7 @@ export default function LriPage() {
               ? latestResult.reason.message
               : "Unable to load latest LRI score.";
           setLatestScore(null);
-          if (!message.includes("No LRI score")) {
+          if (!isNoLatestScoreError(latestResult.reason)) {
             setLriError(message);
           }
         }
@@ -162,6 +172,11 @@ export default function LriPage() {
     () =>
       businesses.find((business) => business.id === selectedBusinessId) ?? null,
     [businesses, selectedBusinessId],
+  );
+
+  const explanationPoints = useMemo(
+    () => (latestScore ? getExplanationPoints(latestScore.explanation) : []),
+    [latestScore],
   );
 
   async function handleCalculate() {
@@ -209,7 +224,7 @@ export default function LriPage() {
           description="Select a business and calculate score."
         >
           {isBusinessLoading ? (
-            <p className="text-sm text-stone-500">Loading businesses...</p>
+            <LoadingState label="Loading businesses..." />
           ) : businessError ? (
             <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
               {businessError}
@@ -225,12 +240,16 @@ export default function LriPage() {
             <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
               <label className="grid gap-2 text-sm font-medium text-stone-700">
                 Business
-                  <select
+                <select
                   className="h-10 rounded-md border border-stone-300 bg-white px-3 text-sm text-stone-900 outline-none transition focus:border-red-500 focus:ring-2 focus:ring-red-100"
                   value={selectedBusinessId ?? ""}
                   onChange={(event) =>
-                    setSelectedBusinessId(Number(event.target.value))
+                    setSelectedBusinessId((current) => {
+                      const next = Number(event.target.value);
+                      return current === next ? current : next;
+                    })
                   }
+                  disabled={isLriLoading || isCalculating}
                 >
                   {businesses.map((business) => (
                     <option key={business.id} value={business.id}>
@@ -241,7 +260,7 @@ export default function LriPage() {
               </label>
               <button
                 className="inline-flex h-10 items-center justify-center rounded-md bg-red-600 px-4 text-sm font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-stone-300"
-                disabled={isCalculating || selectedBusinessId === null}
+                disabled={isCalculating || isLriLoading || selectedBusinessId === null}
                 onClick={handleCalculate}
                 type="button"
               >
@@ -267,7 +286,10 @@ export default function LriPage() {
           <WorkspaceCard
             title="Loading LRI"
             description="Fetching latest score and history."
-          />
+          >
+            <LoadingState label="Fetching latest score and history..." />
+            <WorkspaceSkeleton className="mt-4" rows={3} />
+          </WorkspaceCard>
         ) : latestScore ? (
           <>
             <div className="grid gap-4 lg:grid-cols-4">
@@ -343,7 +365,7 @@ export default function LriPage() {
                 description={`Calculated on ${formatDate(latestScore.created_at)}.`}
               >
                 <ul className="space-y-2">
-                  {getExplanationPoints(latestScore.explanation).map((point) => (
+                  {explanationPoints.map((point) => (
                     <li
                       className="flex gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm leading-6 text-slate-700"
                       key={point}
@@ -359,11 +381,11 @@ export default function LriPage() {
         ) : (
           <WorkspaceCard
             title="Calculate readiness score"
-            description="No LRI score exists for this business yet."
+            description="No readiness score calculated yet."
           >
             <button
               className="inline-flex h-10 items-center justify-center rounded-md bg-red-600 px-4 text-sm font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-stone-300"
-              disabled={isCalculating || selectedBusinessId === null}
+              disabled={isCalculating || isLriLoading || selectedBusinessId === null}
               onClick={handleCalculate}
               type="button"
             >
@@ -377,7 +399,11 @@ export default function LriPage() {
           description="Past score calculations."
         >
           {history.length === 0 ? (
-            <p className="text-sm text-stone-500">No score history yet.</p>
+            isLriLoading ? (
+              <WorkspaceSkeleton rows={3} />
+            ) : (
+              <p className="text-sm text-stone-500">No score history yet.</p>
+            )
           ) : (
             <div className="overflow-x-auto">
               <table className="min-w-full text-left text-sm">

@@ -112,7 +112,7 @@ export function WorkspaceSidebar() {
             key={item.href}
             href={item.href}
             className={cn(
-              "inline-flex whitespace-nowrap rounded-full border px-2.5 py-1.5 text-xs font-medium backdrop-blur-xl transition",
+              "inline-flex whitespace-nowrap rounded-full border px-2.5 py-1.5 text-xs font-medium transition-colors",
               isActive
                 ? "border-white/[0.35] bg-white/[0.18] text-white shadow-lg shadow-cyan-950/20"
                 : "border-white/[0.12] bg-white/[0.055] text-white/[0.72] hover:border-white/[0.25] hover:bg-white/[0.11] hover:text-white",
@@ -143,7 +143,7 @@ export function WorkspaceSidebar() {
                   key={item.href}
                   href={item.href}
                   className={cn(
-                    "group relative flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-[13px] font-medium backdrop-blur-xl transition",
+                    "group relative flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-[13px] font-medium transition-colors",
                     isActive
                       ? "bg-white/[0.13] text-white shadow-sm shadow-black/15 ring-1 ring-white/16"
                       : "text-white/[0.60] hover:bg-white/[0.075] hover:text-white",
@@ -172,10 +172,10 @@ export function WorkspaceSidebar() {
 
   return (
     <>
-      <aside className="fixed inset-y-0 left-0 z-40 hidden w-[240px] overflow-hidden border-r border-white/[0.12] bg-[#111214]/[0.94] text-white shadow-xl shadow-black/[0.22] backdrop-blur-xl lg:flex lg:flex-col">
+      <aside className="fixed inset-y-0 left-0 z-40 hidden w-[240px] overflow-hidden border-r border-white/[0.12] bg-[#111214] text-white shadow-sm shadow-black/[0.18] lg:flex lg:flex-col">
         <div className="relative px-4 py-5">
           <Link href="/onboarding" className="flex items-center gap-2.5">
-            <span className="flex size-9 items-center justify-center rounded-lg border border-white/[0.18] bg-white/[0.12] text-xs font-semibold text-white shadow-sm shadow-black/20 backdrop-blur-xl">
+            <span className="flex size-9 items-center justify-center rounded-lg border border-white/[0.18] bg-white/[0.12] text-xs font-semibold text-white shadow-sm shadow-black/20">
               L
             </span>
             <span>
@@ -191,7 +191,7 @@ export function WorkspaceSidebar() {
         <div className="relative flex-1 overflow-y-auto px-2.5 py-1.5">{desktopNav}</div>
         <div className="relative border-t border-white/[0.12] p-3">
           {session ? (
-            <div className="space-y-2.5 rounded-lg border border-white/[0.13] bg-white/[0.06] p-2.5 shadow-sm shadow-black/[0.12] backdrop-blur-xl">
+            <div className="space-y-2.5 rounded-lg border border-white/[0.13] bg-white/[0.06] p-2.5 shadow-sm shadow-black/[0.12]">
               <div>
                 <p className="truncate text-xs font-medium text-white">
                   {session.name}
@@ -225,7 +225,7 @@ export function WorkspaceSidebar() {
         </div>
       </aside>
 
-      <header className="sticky top-0 z-40 border-b border-white/[0.12] bg-[#111214]/[0.94] text-white shadow-lg shadow-black/15 backdrop-blur-xl lg:hidden">
+      <header className="sticky top-0 z-40 border-b border-white/[0.12] bg-[#111214] text-white shadow-sm shadow-black/15 lg:hidden">
         <div className="px-4 py-3">
           <div className="mb-2.5 flex items-center justify-between gap-3">
             <Link href="/onboarding">

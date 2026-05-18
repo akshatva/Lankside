@@ -7,6 +7,7 @@ import { AppShell } from "@/components/app-shell";
 import { WorkspaceCard } from "@/components/workspace-card";
 import { SectionHeader } from "@/components/section-header";
 import { StatusBadge } from "@/components/status-badge";
+import { LoadingState, WorkspaceSkeleton } from "@/components/ui/loading-state";
 import {
   deleteReport,
   downloadReportPDF,
@@ -58,6 +59,7 @@ export default function ReportsPage() {
   );
   const [reports, setReports] = useState<ReportSummary[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isReportLoading, setIsReportLoading] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -83,6 +85,7 @@ export default function ReportsPage() {
         setBusinesses(loadedBusinesses);
         const firstBusiness = loadedBusinesses[0] ?? null;
         setSelectedBusinessId(firstBusiness?.id ?? null);
+        setReports([]);
         if (firstBusiness) {
           const loadedReports = await getReports({
             businessId: firstBusiness.id,
@@ -115,9 +118,15 @@ export default function ReportsPage() {
 
   async function handleBusinessChange(value: string) {
     const businessId = Number(value);
+    if (businessId === selectedBusinessId) {
+      return;
+    }
+
     setSelectedBusinessId(businessId);
+    setReports([]);
     setError(null);
     setSuccess(null);
+    setIsReportLoading(true);
     try {
       setReports(await getReports({ businessId }));
     } catch (loadError) {
@@ -126,6 +135,8 @@ export default function ReportsPage() {
           ? loadError.message
           : "Unable to load reports.",
       );
+    } finally {
+      setIsReportLoading(false);
     }
   }
 
@@ -196,7 +207,8 @@ export default function ReportsPage() {
 
         {isLoading ? (
           <WorkspaceCard title="Loading reports">
-            <p className="text-sm text-stone-600">Loading business profiles...</p>
+            <LoadingState label="Loading business profiles and reports..." />
+            <WorkspaceSkeleton className="mt-4" rows={3} />
           </WorkspaceCard>
         ) : businesses.length === 0 ? (
           <WorkspaceCard title="Create a business profile first">
@@ -220,6 +232,7 @@ export default function ReportsPage() {
                 Business
                 <select
                   className="h-10 rounded-md border border-stone-300 bg-white px-3 text-sm text-stone-900 outline-none transition focus:border-red-500 focus:ring-2 focus:ring-red-100"
+                  disabled={isReportLoading || isGenerating}
                   onChange={(event) => handleBusinessChange(event.target.value)}
                   value={selectedBusinessId ?? ""}
                 >
@@ -232,7 +245,9 @@ export default function ReportsPage() {
               </label>
               <button
                 className="inline-flex h-10 items-center justify-center rounded-md bg-red-600 px-4 text-sm font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-stone-300"
-                disabled={isGenerating || selectedBusinessId === null}
+                disabled={
+                  isGenerating || isReportLoading || selectedBusinessId === null
+                }
                 onClick={handleGenerate}
                 type="button"
               >
@@ -262,9 +277,14 @@ export default function ReportsPage() {
           title="Report history"
           description="Generated reports for this business."
         >
-          {reports.length === 0 ? (
+          {isReportLoading ? (
+            <>
+              <LoadingState label="Loading reports..." />
+              <WorkspaceSkeleton className="mt-4" rows={3} />
+            </>
+          ) : reports.length === 0 ? (
             <p className="text-sm text-stone-500">
-              No reports generated for this business yet.
+              No reports generated yet.
             </p>
           ) : (
             <div className="overflow-x-auto">
@@ -294,7 +314,7 @@ export default function ReportsPage() {
                       </td>
                       <td className="py-3 pr-4">
                         <div className="flex flex-wrap gap-2">
-                          {report.status === "GENERATED" ? (
+                          {report.status === "GENERATED" && report.pdf_path ? (
                             <a
                               className="inline-flex h-9 items-center justify-center rounded-md border border-stone-300 px-3 text-sm font-semibold text-stone-700 transition hover:bg-stone-50"
                               href={downloadReportPDF(report.id)}

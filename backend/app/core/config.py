@@ -16,7 +16,7 @@ class Settings(BaseSettings):
     version: str = "0.1.0"
     environment: str = Field(default="local", alias="ENVIRONMENT")
     database_url: Optional[str] = Field(
-        default="postgresql://lankside:lankside_password@postgres:5432/lankside_db",
+        default="postgresql://lankside:lankside_password@localhost:5432/lankside_db",
         alias="DATABASE_URL",
     )
     redis_url: str = Field(default="redis://redis:6379/0", alias="REDIS_URL")
@@ -57,6 +57,10 @@ class Settings(BaseSettings):
     report_pdf_dir: str = Field(default="/app/uploads/reports", alias="REPORT_PDF_DIR")
     max_upload_size_mb: int = Field(default=10, alias="MAX_UPLOAD_SIZE_MB")
     admin_demo_enabled: bool = Field(default=True, alias="ADMIN_DEMO_ENABLED")
+    run_startup_migrations: bool = Field(
+        default=True,
+        alias="RUN_STARTUP_MIGRATIONS",
+    )
 
     @property
     def cors_origins(self) -> list[str]:

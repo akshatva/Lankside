@@ -8,6 +8,7 @@ import { AppShell } from "@/components/app-shell";
 import { WorkspaceCard } from "@/components/workspace-card";
 import { SectionHeader } from "@/components/section-header";
 import { StatusBadge } from "@/components/status-badge";
+import { LoadingState, WorkspaceSkeleton } from "@/components/ui/loading-state";
 import {
   deleteMOU,
   downloadMOUPDF,
@@ -71,6 +72,7 @@ export default function MouPage() {
   const [form, setForm] = useState<MOUFormState>(emptyForm);
   const [draftText, setDraftText] = useState("");
   const [isLoading, setIsLoading] = useState(true);
+  const [isMouLoading, setIsMouLoading] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [exportingId, setExportingId] = useState<number | null>(null);
@@ -157,13 +159,22 @@ export default function MouPage() {
       selectMou(null);
       return;
     }
-    const loadedMous = await getMOUs({ businessId });
-    setMous(loadedMous);
-    selectMou(loadedMous[0] ?? null);
+    setIsMouLoading(true);
+    try {
+      const loadedMous = await getMOUs({ businessId });
+      setMous(loadedMous);
+      selectMou(loadedMous[0] ?? null);
+    } finally {
+      setIsMouLoading(false);
+    }
   }
 
   async function handleBusinessChange(value: string) {
     const businessId = Number(value);
+    if (businessId === selectedBusinessId) {
+      return;
+    }
+
     const business = businesses.find((item) => item.id === businessId) ?? null;
     setSelectedBusinessId(businessId);
     setError(null);
@@ -320,7 +331,8 @@ export default function MouPage() {
 
         {isLoading ? (
           <WorkspaceCard title="Loading MOU workspace">
-            <p className="text-sm text-stone-600">Loading business profiles...</p>
+            <LoadingState label="Loading business profiles and MOU history..." />
+            <WorkspaceSkeleton className="mt-4" rows={3} />
           </WorkspaceCard>
         ) : businesses.length === 0 ? (
           <WorkspaceCard title="Create a business profile first">
@@ -347,6 +359,7 @@ export default function MouPage() {
                   </span>
                   <select
                     className="h-11 rounded-md border border-stone-300 bg-white px-3 text-sm text-stone-950 outline-none transition focus:border-red-500 focus:ring-2 focus:ring-red-100"
+                    disabled={isMouLoading || isGenerating}
                     onChange={(event) =>
                       handleBusinessChange(event.target.value)
                     }
@@ -367,6 +380,7 @@ export default function MouPage() {
                   <input
                     className="h-11 rounded-md border border-stone-300 px-3 text-sm text-stone-950 outline-none transition focus:border-red-500 focus:ring-2 focus:ring-red-100"
                     min={1}
+                    disabled={isGenerating}
                     onChange={(event) =>
                       updateField("duration_months", Number(event.target.value))
                     }
@@ -378,21 +392,25 @@ export default function MouPage() {
 
                 <TextInput
                   label="Party A Name"
+                  disabled={isGenerating}
                   onChange={(value) => updateField("party_a_name", value)}
                   value={form.party_a_name}
                 />
                 <TextInput
                   label="Party B Name"
+                  disabled={isGenerating}
                   onChange={(value) => updateField("party_b_name", value)}
                   value={form.party_b_name}
                 />
                 <TextAreaInput
                   label="Purpose"
+                  disabled={isGenerating}
                   onChange={(value) => updateField("purpose", value)}
                   value={form.purpose}
                 />
                 <TextAreaInput
                   label="Contribution Details"
+                  disabled={isGenerating}
                   onChange={(value) =>
                     updateField("contribution_details", value)
                   }
@@ -400,17 +418,20 @@ export default function MouPage() {
                 />
                 <TextAreaInput
                   label="Revenue Sharing"
+                  disabled={isGenerating}
                   onChange={(value) => updateField("revenue_sharing", value)}
                   value={form.revenue_sharing}
                 />
                 <TextAreaInput
                   label="Dispute Resolution"
+                  disabled={isGenerating}
                   onChange={(value) => updateField("dispute_resolution", value)}
                   value={form.dispute_resolution}
                 />
                 <div className="lg:col-span-2">
                   <TextAreaInput
                     label="Cluster Purpose"
+                    disabled={isGenerating}
                     onChange={(value) => updateField("cluster_purpose", value)}
                     value={form.cluster_purpose}
                   />
@@ -420,7 +441,7 @@ export default function MouPage() {
               <div className="mt-5 flex flex-wrap items-center gap-3">
                 <button
                   className="inline-flex h-11 items-center justify-center rounded-md bg-red-600 px-5 text-sm font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-stone-300 disabled:text-stone-500"
-                  disabled={isGenerating}
+                  disabled={isGenerating || isMouLoading}
                   type="submit"
                 >
                   {isGenerating ? "Generating..." : "Generate Draft"}
@@ -454,17 +475,23 @@ export default function MouPage() {
                 }
                 description="Edit before exporting."
               >
-                {activeMou ? (
+                {isMouLoading ? (
+                  <>
+                    <LoadingState label="Loading MOU history..." />
+                    <WorkspaceSkeleton className="mt-4" rows={3} />
+                  </>
+                ) : activeMou ? (
                   <div className="space-y-4">
                     <textarea
                       className="min-h-[520px] w-full rounded-md border border-stone-300 bg-white p-3 font-mono text-sm leading-6 text-stone-950 outline-none transition focus:border-red-500 focus:ring-2 focus:ring-red-100"
                       onChange={(event) => setDraftText(event.target.value)}
+                      disabled={isSaving || exportingId === activeMou.id}
                       value={draftText}
                     />
                     <div className="flex flex-wrap gap-2">
                       <button
                         className="inline-flex h-10 items-center rounded-md bg-stone-900 px-4 text-sm font-semibold text-white transition hover:bg-stone-700 disabled:cursor-not-allowed disabled:bg-stone-300"
-                        disabled={isSaving}
+                        disabled={isSaving || exportingId === activeMou.id}
                         onClick={handleSave}
                         type="button"
                       >
@@ -472,7 +499,7 @@ export default function MouPage() {
                       </button>
                       <button
                         className="inline-flex h-10 items-center rounded-md border border-stone-300 px-4 text-sm font-medium text-stone-700 transition hover:bg-stone-50 disabled:cursor-not-allowed disabled:opacity-60"
-                        disabled={exportingId === activeMou.id}
+                        disabled={isSaving || exportingId === activeMou.id}
                         onClick={() => handleExport(activeMou.id)}
                         type="button"
                       >
@@ -502,7 +529,9 @@ export default function MouPage() {
                 title="Draft metadata"
                 description="Current draft details."
               >
-                {activeMou ? (
+                {isMouLoading ? (
+                  <WorkspaceSkeleton rows={2} />
+                ) : activeMou ? (
                   <dl className="space-y-3 text-sm">
                     <MetaRow label="Status">
                       <StatusBadge
@@ -534,7 +563,12 @@ export default function MouPage() {
               title="MOU list"
               description="Draft history for this business."
             >
-              {mous.length === 0 ? (
+              {isMouLoading ? (
+                <>
+                  <LoadingState label="Loading MOU drafts..." />
+                  <WorkspaceSkeleton className="mt-4" rows={4} />
+                </>
+              ) : mous.length === 0 ? (
                 <p className="text-sm text-stone-600">
                   No MOU drafts generated for this business yet.
                 </p>
@@ -588,6 +622,7 @@ export default function MouPage() {
                             <div className="flex flex-wrap gap-2">
                               <button
                                 className="inline-flex h-9 items-center rounded-md border border-stone-300 px-3 text-sm font-medium text-stone-700 transition hover:bg-stone-50"
+                                disabled={Boolean(exportingId) || Boolean(deletingId)}
                                 onClick={() => selectMou(mou)}
                                 type="button"
                               >
@@ -636,17 +671,19 @@ export default function MouPage() {
 }
 
 type TextInputProps = {
+  disabled?: boolean;
   label: string;
   onChange: (value: string) => void;
   value: string;
 };
 
-function TextInput({ label, onChange, value }: TextInputProps) {
+function TextInput({ disabled, label, onChange, value }: TextInputProps) {
   return (
     <label className="flex flex-col gap-2">
       <span className="text-sm font-medium text-stone-700">{label}</span>
       <input
         className="h-11 rounded-md border border-stone-300 px-3 text-sm text-stone-950 outline-none transition focus:border-red-500 focus:ring-2 focus:ring-red-100"
+        disabled={disabled}
         onChange={(event) => onChange(event.target.value)}
         required
         value={value}
@@ -655,12 +692,13 @@ function TextInput({ label, onChange, value }: TextInputProps) {
   );
 }
 
-function TextAreaInput({ label, onChange, value }: TextInputProps) {
+function TextAreaInput({ disabled, label, onChange, value }: TextInputProps) {
   return (
     <label className="flex flex-col gap-2">
       <span className="text-sm font-medium text-stone-700">{label}</span>
       <textarea
         className="min-h-28 rounded-md border border-stone-300 p-3 text-sm leading-6 text-stone-950 outline-none transition focus:border-red-500 focus:ring-2 focus:ring-red-100"
+        disabled={disabled}
         onChange={(event) => onChange(event.target.value)}
         required
         value={value}

@@ -70,7 +70,7 @@ export function WorkflowSection() {
             />
           }
           statistic={
-            <Card className="relative h-full overflow-hidden border-white/10 bg-white/[0.055] text-white backdrop-blur-xl">
+            <Card className="relative h-full overflow-hidden border-white/10 bg-white/[0.055] text-white">
               <CardContent className="flex h-full flex-col justify-center p-6">
                 <span className="text-5xl font-semibold text-white">07</span>
                 <p className="mt-2 text-sm text-white/65">workflow steps</p>
@@ -94,7 +94,7 @@ export function WorkflowSection() {
             />
           }
           shortcuts={
-            <Card className="h-full border-white/10 bg-white/[0.055] text-white backdrop-blur-xl">
+            <Card className="h-full border-white/10 bg-white/[0.055] text-white">
               <CardContent className="flex h-full flex-wrap items-center justify-between gap-4 p-6">
                 <div>
                   <CardTitle className="text-base font-medium text-white">
@@ -134,7 +134,7 @@ function WorkflowCard({
   items?: string[];
 }) {
   return (
-    <Card className="h-full border-white/10 bg-white/[0.055] text-white backdrop-blur-xl">
+    <Card className="h-full border-white/10 bg-white/[0.055] text-white">
       <CardHeader className="p-5">
         <div className="flex items-start justify-between gap-4">
           <div className="flex size-10 items-center justify-center rounded-lg border border-white/10 bg-black/30 text-cyan-100">

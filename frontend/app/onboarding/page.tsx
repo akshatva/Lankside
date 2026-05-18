@@ -13,6 +13,7 @@ import {
   FormField,
   WorkspaceInput,
 } from "@/components/ui/form-field";
+import { LoadingState, WorkspaceSkeleton } from "@/components/ui/loading-state";
 import { MetricCard } from "@/components/ui/metric-card";
 import { WorkspaceButton } from "@/components/ui/workspace-button";
 import { WorkspaceCard } from "@/components/ui/workspace-card";
@@ -280,9 +281,10 @@ export default function OnboardingPage() {
           >
             <form className="space-y-6" onSubmit={handleSubmit}>
               {!session || isLoading ? (
-                <ErrorState tone="neutral">
-                  Preparing your onboarding workspace...
-                </ErrorState>
+                <>
+                  <LoadingState label="Preparing your onboarding workspace..." />
+                  <WorkspaceSkeleton rows={3} />
+                </>
               ) : (
                 <>
                   {fieldGroups.map((group) => (
@@ -307,6 +309,7 @@ export default function OnboardingPage() {
                             required={field.required}
                           >
                             <WorkspaceInput
+                              disabled={isSaving}
                               min={field.type === "number" ? 0 : undefined}
                               name={field.name}
                               onChange={(event) =>
@@ -348,7 +351,9 @@ export default function OnboardingPage() {
               title="Profile summary"
               description="Saved business details."
             >
-              {business ? (
+              {isLoading ? (
+                <WorkspaceSkeleton rows={2} />
+              ) : business ? (
                 <div className="space-y-5">
                   <MetricCard
                     label="Current business"

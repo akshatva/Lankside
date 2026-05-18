@@ -1,10 +1,7 @@
 "use client";
 
-import * as React from "react";
 import Link from "next/link";
 import { X } from "lucide-react";
-import { AnimatePresence, motion } from "framer-motion";
-import type { Variants } from "framer-motion";
 
 import { cn } from "@/lib/utils";
 
@@ -43,94 +40,50 @@ export function UpgradeBanner({
   onClick,
   className,
 }: UpgradeBannerProps) {
-  const [isHovered, setIsHovered] = React.useState(false);
-
-  const iconVariants: Variants = {
-    hidden: { x: 0, y: 0, opacity: 0, rotate: 0 },
-    visible: (custom: { x: number; y: number }) => ({
-      x: custom.x,
-      y: custom.y,
-      opacity: 1,
-      rotate: 360,
-      transition: {
-        x: { duration: 0.3, ease: "easeOut" },
-        y: { duration: 0.3, ease: "easeOut" },
-        opacity: { duration: 0.3 },
-        rotate: {
-          duration: 1,
-          type: "spring",
-          stiffness: 100,
-          damping: 10,
-        },
-      },
-    }),
-  };
-
   const triggerClassName =
     "focus-visible:shadow-focus-ring rounded-xs my-[-1px] cursor-pointer border-none bg-transparent px-0 py-1 font-sans text-[13px] font-medium text-cyan-950 underline decoration-cyan-200 underline-offset-[5px] outline-none hover:text-cyan-700 hover:decoration-cyan-300 focus-visible:!shadow-cyan-400";
 
   const triggerProps = {
-    onMouseEnter: () => setIsHovered(true),
-    onMouseLeave: () => setIsHovered(false),
     onClick,
   };
 
   return (
     <div className={cn("mx-auto flex items-center justify-center", className)}>
-      <AnimatePresence>
-        <motion.div
-          className="relative"
-          initial={{ opacity: 0, x: 30 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.4 }}
-        >
-          <motion.div
-            initial="hidden"
-            animate={isHovered ? "visible" : "hidden"}
-            variants={iconVariants}
-            custom={{ x: -10, y: -10 }}
-            className="pointer-events-none absolute left-[4px] top-[2px]"
-          >
-            <SettingsFilled className="text-cyan-400" />
-          </motion.div>
-          <motion.div
-            initial="hidden"
-            animate={isHovered ? "visible" : "hidden"}
-            variants={iconVariants}
-            custom={{ x: 10, y: 10 }}
-            className="pointer-events-none absolute bottom-[2px] left-[6rem]"
-          >
-            <SettingsFilled className="text-orange-400" />
-          </motion.div>
-          <div className="relative flex h-[35px] items-center gap-1 rounded-[6px] border border-cyan-200/70 bg-cyan-50 pl-2.5 pr-1 text-sm shadow-lg shadow-cyan-950/10">
-            {href ? (
-              <Link className={triggerClassName} href={href} {...triggerProps}>
-                {buttonText}
-              </Link>
-            ) : (
-              <button
-                className={triggerClassName}
-                type="button"
-                {...triggerProps}
-              >
-                {buttonText}
-              </button>
-            )}
-            <span className="text-[0.8125rem] text-cyan-700">
-              {description}
-            </span>
-            {onClose && (
-              <button
-                onClick={onClose}
-                className="m-0 flex h-6 !w-6 shrink-0 cursor-pointer items-center justify-center rounded-[4px] border-0 bg-transparent p-0 text-cyan-700 hover:bg-cyan-100"
-                type="button"
-              >
-                <X size={16} className="text-cyan-700" />
-              </button>
-            )}
-          </div>
-        </motion.div>
-      </AnimatePresence>
+      <div className="group relative">
+        <div className="pointer-events-none absolute left-[4px] top-[2px] opacity-0 transition group-hover:-translate-x-2 group-hover:-translate-y-2 group-hover:opacity-100">
+          <SettingsFilled className="text-cyan-400" />
+        </div>
+        <div className="pointer-events-none absolute bottom-[2px] left-[6rem] opacity-0 transition group-hover:translate-x-2 group-hover:translate-y-2 group-hover:opacity-100">
+          <SettingsFilled className="text-orange-400" />
+        </div>
+        <div className="relative flex h-[35px] items-center gap-1 rounded-[6px] border border-cyan-200/70 bg-cyan-50 pl-2.5 pr-1 text-sm shadow-lg shadow-cyan-950/10">
+          {href ? (
+            <Link className={triggerClassName} href={href} {...triggerProps}>
+              {buttonText}
+            </Link>
+          ) : (
+            <button
+              className={triggerClassName}
+              type="button"
+              {...triggerProps}
+            >
+              {buttonText}
+            </button>
+          )}
+          <span className="text-[0.8125rem] text-cyan-700">
+            {description}
+          </span>
+          {onClose && (
+            <button
+              onClick={onClose}
+              className="m-0 flex h-6 !w-6 shrink-0 cursor-pointer items-center justify-center rounded-[4px] border-0 bg-transparent p-0 text-cyan-700 hover:bg-cyan-100"
+              type="button"
+            >
+              <X size={16} className="text-cyan-700" />
+            </button>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

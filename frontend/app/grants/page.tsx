@@ -6,6 +6,7 @@ import { AppShell } from "@/components/app-shell";
 import { WorkspaceCard } from "@/components/workspace-card";
 import { SectionHeader } from "@/components/section-header";
 import { StatusBadge } from "@/components/status-badge";
+import { LoadingState, WorkspaceSkeleton } from "@/components/ui/loading-state";
 import {
   getBusinesses,
   getGrantMatches,
@@ -169,6 +170,18 @@ export default function GrantsPage() {
     }
   }
 
+  function handleBusinessSelection(value: string) {
+    const businessId = Number(value);
+    setSelectedBusinessId((current) => {
+      if (current === businessId) {
+        return current;
+      }
+
+      setMatches([]);
+      return businessId;
+    });
+  }
+
   return (
     <AppShell>
       <div className="space-y-6">
@@ -184,7 +197,10 @@ export default function GrantsPage() {
           description="Seed schemes if needed, then run matching."
         >
           {isBusinessLoading ? (
-            <p className="text-sm text-stone-500">Loading Grant Scout...</p>
+            <>
+              <LoadingState label="Loading Grant Scout..." />
+              <WorkspaceSkeleton className="mt-4" rows={3} />
+            </>
           ) : businessError ? (
             <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
               {businessError}
@@ -204,9 +220,8 @@ export default function GrantsPage() {
                   <select
                     className="h-10 rounded-md border border-stone-300 bg-white px-3 text-sm text-stone-900 outline-none transition focus:border-red-500 focus:ring-2 focus:ring-red-100"
                     value={selectedBusinessId ?? ""}
-                    onChange={(event) =>
-                      setSelectedBusinessId(Number(event.target.value))
-                    }
+                    onChange={(event) => handleBusinessSelection(event.target.value)}
+                    disabled={isGrantLoading || isMatching}
                   >
                     {businesses.map((business) => (
                       <option key={business.id} value={business.id}>
@@ -217,7 +232,7 @@ export default function GrantsPage() {
                 </label>
                 <button
                   className="inline-flex h-10 items-center justify-center rounded-md border border-stone-300 px-4 text-sm font-semibold text-stone-700 transition hover:bg-stone-50 disabled:cursor-not-allowed disabled:bg-stone-100"
-                  disabled={isSeeding}
+                  disabled={isSeeding || isMatching}
                   onClick={handleSeedSchemes}
                   type="button"
                 >
@@ -226,7 +241,10 @@ export default function GrantsPage() {
                 <button
                   className="inline-flex h-10 items-center justify-center rounded-md bg-red-600 px-4 text-sm font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-stone-300"
                   disabled={
-                    isMatching || selectedBusinessId === null || schemes.length === 0
+                    isMatching ||
+                    isGrantLoading ||
+                    selectedBusinessId === null ||
+                    schemes.length === 0
                   }
                   onClick={handleRunMatching}
                   type="button"
@@ -268,7 +286,10 @@ export default function GrantsPage() {
           description="Best matches for this business."
         >
           {isGrantLoading ? (
-            <p className="text-sm text-stone-500">Loading matches...</p>
+            <>
+              <LoadingState label="Loading matches..." />
+              <WorkspaceSkeleton className="mt-4" rows={3} />
+            </>
           ) : matches.length === 0 ? (
             <p className="text-sm text-stone-500">
               No stored scheme matches yet. Run Grant Scout to create matches.

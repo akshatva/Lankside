@@ -39,6 +39,13 @@ cp .env.example .env
 docker compose up --build
 ```
 
+For non-Docker backend development, set `DATABASE_URL` to the host PostgreSQL
+port instead of the Compose hostname:
+
+```bash
+DATABASE_URL=postgresql://lankside:lankside_password@localhost:5432/lankside_db
+```
+
 3. Open the services:
 
 - Frontend: http://localhost:3000
@@ -283,7 +290,7 @@ In Vercel, import the GitHub repository and use these project settings:
 - Install command: `npm install`
 - Build command: `npm run build`
 - Output directory: leave default
-- Environment variable: `NEXT_PUBLIC_API_URL=<public FastAPI backend origin>`
+- Environment variable: `BACKEND_API_URL=<public FastAPI backend origin>`
 
 For local frontend development without Docker, copy the frontend env example:
 
@@ -294,7 +301,7 @@ npm install
 npm run dev
 ```
 
-Set `NEXT_PUBLIC_API_URL` to the public URL of the separately deployed FastAPI
+Set `BACKEND_API_URL` to the public URL of the separately deployed FastAPI
 backend, for example `https://api.example.com`. Do not point the Vercel frontend
 at Docker-only hostnames such as `backend` or internal Compose service names.
 
