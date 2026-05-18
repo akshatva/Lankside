@@ -1,4 +1,5 @@
 import logging
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -15,9 +16,17 @@ SERVICE_NAME = "lankside-backend"
 configure_logging()
 logger = logging.getLogger(__name__)
 
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    run_startup_migrations()
+    yield
+
+
 app = FastAPI(
     title=settings.project_name,
     version="0.1",
+    lifespan=lifespan,
 )
 
 app.add_middleware(
@@ -27,8 +36,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-app.add_event_handler("startup", run_startup_migrations)
 
 
 @app.exception_handler(SQLAlchemyError)
