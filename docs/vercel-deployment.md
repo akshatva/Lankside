@@ -23,10 +23,10 @@ npm run build
 
 ```bash
 BACKEND_API_URL=http://localhost:8000
-NEXT_PUBLIC_API_URL=/api/backend
+NEXT_PUBLIC_API_URL=http://localhost:8000
 ```
 
-For deployed environments, replace `BACKEND_API_URL` with the public backend
+For deployed environments, replace `NEXT_PUBLIC_API_URL` with the public backend
 origin.
 
 ## Push to GitHub
@@ -63,11 +63,10 @@ Add this environment variable in Vercel for Production, Preview, and Development
 as needed:
 
 ```bash
-BACKEND_API_URL=https://your-backend.example.com
-NEXT_PUBLIC_API_URL=/api/backend
+NEXT_PUBLIC_API_URL=https://your-backend.example.com
 ```
 
-Use the public FastAPI backend origin for `BACKEND_API_URL`. Do not use Docker
+Use the public FastAPI backend origin for `NEXT_PUBLIC_API_URL`. Do not use Docker
 Compose service names such as `backend`, and do not rely on `localhost` for
 Vercel deployments.
 
@@ -77,12 +76,13 @@ Deploy the FastAPI backend separately before using the production frontend.
 Confirm these backend settings:
 
 - The backend is reachable from the public internet over HTTPS.
-- `BACKEND_CORS_ORIGINS` includes the Vercel frontend URL.
+- `BACKEND_CORS_ORIGINS` includes the Vercel frontend URL, or
+  `BACKEND_CORS_ORIGIN_REGEX=https://.*\.vercel\.app` is set.
 - File download endpoints are reachable from browser clients.
 - Any database, Redis, worker, upload, and AI provider settings are configured
   in the backend deployment environment.
 
 ## Redeploying
 
-After changing `BACKEND_API_URL`, trigger a new Vercel deployment or restart so
-the server-side proxy reads the updated value.
+After changing `NEXT_PUBLIC_API_URL`, trigger a new Vercel deployment so the
+frontend bundle includes the updated value.

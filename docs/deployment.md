@@ -93,12 +93,11 @@ Production variables to review:
 Never commit real production secrets. Use strong database passwords and inject
 keys through `.env.production` or a secure host-level secret mechanism.
 
-The frontend browser calls `/api/backend` on the same origin. Set
-`BACKEND_API_URL` to the backend origin that the Next.js server can reach. In
-Docker Compose this is `http://backend:8000`; on Vercel or another separate
-frontend host this should be the public FastAPI origin, for example
-`https://api.example.com`. Keep `NEXT_PUBLIC_API_URL=/api/backend` unless you
-intentionally bypass the proxy.
+Docker Compose can keep `NEXT_PUBLIC_API_URL=/api/backend` and set
+`BACKEND_API_URL` to the backend origin that the Next.js server can reach, such
+as `http://backend:8000`. On Vercel or another separate frontend host, set
+`NEXT_PUBLIC_API_URL` directly to the public FastAPI origin, for example
+`https://api.example.com`.
 
 ## Production Startup
 

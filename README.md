@@ -290,7 +290,7 @@ In Vercel, import the GitHub repository and use these project settings:
 - Install command: `npm install`
 - Build command: `npm run build`
 - Output directory: leave default
-- Environment variable: `BACKEND_API_URL=<public FastAPI backend origin>`
+- Environment variable: `NEXT_PUBLIC_API_URL=<public FastAPI backend origin>`
 
 For local frontend development without Docker, copy the frontend env example:
 
@@ -301,7 +301,7 @@ npm install
 npm run dev
 ```
 
-Set `BACKEND_API_URL` to the public URL of the separately deployed FastAPI
+Set `NEXT_PUBLIC_API_URL` to the public URL of the separately deployed FastAPI
 backend, for example `https://api.example.com`. Do not point the Vercel frontend
 at Docker-only hostnames such as `backend` or internal Compose service names.
 

@@ -240,7 +240,7 @@ async function executeBackendRequest<T>(
     return {
       ok: false,
       error: isNetworkFailure
-        ? `Unable to reach backend API through ${backendApiUrl}. Start the backend or set BACKEND_API_URL to a reachable API URL.`
+        ? "Unable to reach backend API. Check NEXT_PUBLIC_API_URL in deployment environment variables."
         : message,
     };
   } finally {

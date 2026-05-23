@@ -48,6 +48,10 @@ class Settings(BaseSettings):
         default="http://localhost:3000",
         alias="BACKEND_CORS_ORIGINS",
     )
+    backend_cors_origin_regex: Optional[str] = Field(
+        default=r"https://.*\.vercel\.app",
+        alias="BACKEND_CORS_ORIGIN_REGEX",
+    )
     upload_dir: str = Field(default="/app/uploads", alias="UPLOAD_DIR")
     mou_pdf_dir: str = Field(default="/app/uploads/mous", alias="MOU_PDF_DIR")
     report_output_dir: str = Field(

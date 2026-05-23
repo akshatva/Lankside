@@ -25,14 +25,11 @@ type BackendRouteContext = {
 };
 
 function getBackendApiUrl() {
-  const configuredUrl = process.env.BACKEND_API_URL?.trim();
+  const configuredUrl =
+    process.env.BACKEND_API_URL?.trim() || process.env.NEXT_PUBLIC_API_URL?.trim();
 
-  if (configuredUrl) {
+  if (configuredUrl?.startsWith("http://") || configuredUrl?.startsWith("https://")) {
     return configuredUrl.replace(/\/$/, "");
-  }
-
-  if (process.env.VERCEL === "1") {
-    return null;
   }
 
   return LOCAL_BACKEND_API_URL;
@@ -80,16 +77,6 @@ async function proxyBackendRequest(
   const { path } = await context.params;
   const incomingUrl = new URL(request.url);
   const backendApiUrl = getBackendApiUrl();
-
-  if (!backendApiUrl) {
-    return Response.json(
-      {
-        detail:
-          "BACKEND_API_URL is not configured for this deployment. Set it to the public FastAPI backend URL in Vercel environment variables.",
-      },
-      { status: 500 },
-    );
-  }
 
   const backendUrl = new URL(
     `/${path.map(encodeURIComponent).join("/")}${incomingUrl.search}`,
@@ -141,7 +128,8 @@ async function proxyBackendRequest(
     );
     return Response.json(
       {
-        detail: `Unable to reach backend API at ${backendApiUrl}. Start the backend or set BACKEND_API_URL to a reachable API URL.`,
+        detail:
+          "Unable to reach backend API. Check NEXT_PUBLIC_API_URL in deployment environment variables.",
       },
       { status: 502 },
     );

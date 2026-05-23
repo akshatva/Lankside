@@ -1,9 +1,33 @@
-const DEFAULT_API_BASE_URL = "/api/backend";
+const LOCAL_API_BASE_URL = "http://localhost:8000";
+const PRODUCTION_API_BASE_URL = "/api/backend";
 
-export const apiBaseUrl = DEFAULT_API_BASE_URL;
+function normalizeApiBaseUrl(value: string) {
+  return value.trim().replace(/\/$/, "");
+}
 
-export const isUsingApiBaseUrlFallback = true;
+const configuredApiBaseUrl = process.env.NEXT_PUBLIC_API_URL?.trim();
+let didWarnAboutApiBaseUrlFallback = false;
+const fallbackApiBaseUrl =
+  process.env.NODE_ENV === "production"
+    ? PRODUCTION_API_BASE_URL
+    : LOCAL_API_BASE_URL;
+
+export const apiBaseUrl = normalizeApiBaseUrl(
+  configuredApiBaseUrl || fallbackApiBaseUrl,
+);
+
+export const isUsingApiBaseUrlFallback = !configuredApiBaseUrl;
 
 export function warnIfUsingApiBaseUrlFallback() {
-  return;
+  if (
+    isUsingApiBaseUrlFallback &&
+    process.env.NODE_ENV === "production" &&
+    typeof console !== "undefined" &&
+    !didWarnAboutApiBaseUrlFallback
+  ) {
+    didWarnAboutApiBaseUrlFallback = true;
+    console.warn(
+      "NEXT_PUBLIC_API_URL is not configured. Falling back to /api/backend.",
+    );
+  }
 }
